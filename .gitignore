@@ -1,0 +1,19 @@
+# Python caches and environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Packaging output
+build/
+dist/
+*.egg-info/
+
+# vTune runtime output
+runs/
+*.db
+
+# Local secrets and editor files
+.env
+.idea/
+.vscode/
