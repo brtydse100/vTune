@@ -16,8 +16,7 @@ class ExperimentConfig:
 
 @dataclass(frozen=True, slots=True)
 class ModelConfig:
-    id: str
-    revision: str | None = None
+    path: str
 
 
 @dataclass(frozen=True, slots=True)

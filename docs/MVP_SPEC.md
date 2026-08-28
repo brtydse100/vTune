@@ -199,8 +199,7 @@ experiment:
   seed: 42
 
 model:
-  id: Qwen/Qwen3-32B
-  revision: main
+  path: /models/Qwen3-32B
 
 server:
   args:
@@ -279,6 +278,9 @@ execution:
   retry:
     max_attempts: 2
 ```
+
+`model.path` is required, must point to an existing local model directory, and
+is resolved relative to the YAML file when it is not absolute.
 
 Unknown top-level vTune keys must be rejected with a useful validation error.
 Unknown entries inside `server.args`, `server.tune`, `server.env`, and

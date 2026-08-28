@@ -30,7 +30,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.action == "validate":
             Orchestrator(config).validate()
             print(f"Configuration valid: {config.experiment.name}")
-            print(f"Model: {config.model.id}")
+            print(f"Model: {config.model.path}")
             return 0
         outcome = asyncio.run(Orchestrator(config).run())
     except ConfigError as error:

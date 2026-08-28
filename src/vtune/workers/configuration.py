@@ -24,9 +24,7 @@ def build_process_spec(
 
     arguments = dict(config.server.args)
     arguments.update(chosen_args)
-    argv = ["vllm", "serve", config.model.id]
-    if config.model.revision is not None:
-        argv.extend(("--revision", config.model.revision))
+    argv = ["vllm", "serve", config.model.path]
     for name in sorted(arguments):
         argv.extend(_render_argument(name, arguments[name]))
 

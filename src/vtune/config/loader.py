@@ -41,14 +41,14 @@ def load_config(path: str | Path) -> VTuneConfig:
         raise ConfigYAMLError(f"Invalid YAML in '{source}': {error}") from error
 
     try:
-        return _build_config(raw)
+        return _build_config(raw, source.parent)
     except ConfigValidationError:
         raise
     except (TypeError, ValueError) as error:
         raise ConfigValidationError(f"Invalid configuration: {error}") from error
 
 
-def _build_config(raw: Any) -> VTuneConfig:
+def _build_config(raw: Any, config_directory: Path) -> VTuneConfig:
     root = _mapping(raw, "configuration")
     unknown = sorted(set(root) - _TOP_LEVEL_KEYS)
     if unknown:
@@ -62,7 +62,7 @@ def _build_config(raw: Any) -> VTuneConfig:
         raise ConfigValidationError("'schema_version' must be 1")
 
     experiment = _build_experiment(_required_mapping(root, "experiment"))
-    model = _build_model(_required_mapping(root, "model"))
+    model = _build_model(_required_mapping(root, "model"), config_directory)
     server = _build_server(_required_mapping(root, "server"))
     optional = {
         name: dict(_mapping(root.get(name, {}), f"'{name}'"))
@@ -89,12 +89,14 @@ def _build_experiment(raw: dict[str, Any]) -> ExperimentConfig:
     )
 
 
-def _build_model(raw: dict[str, Any]) -> ModelConfig:
-    _reject_unknown(raw, {"id", "revision"}, "model")
-    revision = raw.get("revision")
-    if revision is not None:
-        revision = _nonempty_string(revision, "model.revision")
-    return ModelConfig(id=_nonempty_string(raw.get("id"), "model.id"), revision=revision)
+def _build_model(raw: dict[str, Any], config_directory: Path) -> ModelConfig:
+    _reject_unknown(raw, {"path"}, "model")
+    configured = Path(_nonempty_string(raw.get("path"), "model.path")).expanduser()
+    resolved = configured if configured.is_absolute() else config_directory / configured
+    resolved = resolved.resolve()
+    if not resolved.is_dir():
+        raise ConfigValidationError(f"'model.path' is not a directory: {resolved}")
+    return ModelConfig(path=str(resolved))
 
 
 def _build_server(raw: dict[str, Any]) -> ServerConfig:

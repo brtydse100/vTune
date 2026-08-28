@@ -73,7 +73,7 @@ def build_plan(
     argv = [
         "guidellm", "run", "--backend",
         _serialize({"kind": "openai_http", "target": endpoint,
-                    "model": config.model.id, "request_format": request_format}),
+                    "model": config.model.path, "request_format": request_format}),
         "--profile", _serialize(_mapping(run.get("profile"), "profile")),
     ]
     for option, label in (("constraints", "constraint"), ("data", "data")):
