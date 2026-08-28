@@ -98,16 +98,13 @@ def _build_model(raw: dict[str, Any]) -> ModelConfig:
 
 
 def _build_server(raw: dict[str, Any]) -> ServerConfig:
-    fields = {"executable", "args", "tune", "env", "tune_env"}
+    fields = {"args", "tune", "env", "tune_env"}
     _reject_unknown(raw, fields, "server")
     mappings = {
         name: dict(_mapping(raw.get(name, {}), f"'server.{name}'"))
         for name in ("args", "tune", "env", "tune_env")
     }
-    return ServerConfig(
-        executable=_nonempty_string(raw.get("executable", "vllm"), "server.executable"),
-        **mappings,
-    )
+    return ServerConfig(**mappings)
 
 
 def _required_mapping(root: dict[str, Any], name: str) -> dict[str, Any]:

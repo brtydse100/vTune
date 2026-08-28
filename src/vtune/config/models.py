@@ -22,7 +22,6 @@ class ModelConfig:
 
 @dataclass(frozen=True, slots=True)
 class ServerConfig:
-    executable: str = "vllm"
     args: ConfigMapping = field(default_factory=dict)
     tune: ConfigMapping = field(default_factory=dict)
     env: ConfigMapping = field(default_factory=dict)
