@@ -7,6 +7,7 @@ from types import MappingProxyType
 from typing import Mapping
 
 from vtune.domain.results import Failure, WorkerStatus
+from vtune.domain.attempt_report import AttemptReport
 
 
 def _freeze(value: object) -> object:
@@ -24,6 +25,7 @@ class TrialReport:
     status: WorkerStatus
     benchmarks: tuple[Mapping[str, object], ...]
     artifacts: Mapping[str, str]
+    attempts: tuple[AttemptReport, ...] = ()
     failure: Failure | None = None
 
     def __post_init__(self) -> None:
@@ -35,12 +37,14 @@ class TrialReport:
             raise ValueError("an unsuccessful trial report requires a failure")
         object.__setattr__(self, "benchmarks", tuple(_freeze(self.benchmarks)))
         object.__setattr__(self, "artifacts", _freeze(self.artifacts))
+        object.__setattr__(self, "attempts", tuple(self.attempts))
 
     def to_dict(self) -> dict[str, object]:
         document: dict[str, object] = {
             "schema_version": self.schema_version, "trial_id": self.trial_id,
             "status": self.status.value, "benchmarks": _plain(self.benchmarks),
             "artifacts": _plain(self.artifacts),
+            "attempts": [_attempt_dict(attempt) for attempt in self.attempts],
         }
         if self.failure:
             document["failure"] = {"code": self.failure.code,
@@ -55,3 +59,12 @@ def _plain(value: object) -> object:
     if isinstance(value, tuple):
         return [_plain(item) for item in value]
     return value
+
+
+def _attempt_dict(attempt: AttemptReport) -> dict[str, object]:
+    failure = None
+    if attempt.failure:
+        failure = {"code": attempt.failure.code, "message": attempt.failure.message,
+                   "retryable": attempt.failure.retryable}
+    return {"index": attempt.index, "status": attempt.status.value,
+            "artifacts": dict(attempt.artifacts), "failure": failure}

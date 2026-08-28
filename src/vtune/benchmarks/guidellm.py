@@ -10,6 +10,7 @@ import re
 
 from vtune.config.models import VTuneConfig
 from vtune.domain.benchmark import BenchmarkResult, WorkloadResult
+from vtune.benchmarks.timing import normalize_durations
 
 _RUN_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
@@ -24,7 +25,7 @@ class GuideLLMPlan:
 
 
 def configured_runs(config: VTuneConfig) -> tuple[Mapping[str, object], ...]:
-    unknown = set(config.benchmark) - {"runs"}
+    unknown = set(config.benchmark) - {"runs", "repeats"}
     if unknown:
         raise ValueError(f"Unsupported benchmark setting(s): {', '.join(sorted(unknown))}")
     runs = config.benchmark.get("runs")
@@ -46,8 +47,18 @@ def configured_runs(config: VTuneConfig) -> tuple[Mapping[str, object], ...]:
         if name in names:
             raise ValueError(f"duplicate benchmark run name: {name}")
         names.add(name)
+        data = run.get("data")
+        if not isinstance(data, list) or len(data) != 1:
+            raise ValueError(f"benchmark run '{name}' must configure exactly one dataset")
         validated.append(run)
     return tuple(validated)
+
+
+def configured_repeats(config: VTuneConfig) -> int:
+    value = config.benchmark.get("repeats", 1)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError("benchmark.repeats must be a positive integer")
+    return value
 
 
 def build_plan(
@@ -70,6 +81,8 @@ def build_plan(
         if not isinstance(values, list):
             raise ValueError(f"benchmark run '{option}' must be a list")
         for value in values:
+            if label == "constraint" and isinstance(value, dict) and value.get("kind") == "max_duration":
+                value = {**value, "seconds": normalize_durations(value.get("seconds"))}
             argv.extend((f"--{label}", _serialize(_mapping(value, label))))
     argv.extend(("--output", f"kind=json,path={json_path}",
                  "--disable-console-interactive"))

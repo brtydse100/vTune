@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 from vtune.domain.results import WorkerResult
+from vtune.domain.attempt_report import AttemptReport
 
 
 @dataclass(slots=True)
@@ -15,6 +16,7 @@ class TrialContext:
     trial_id: str
     values: dict[str, object] = field(default_factory=dict)
     artifacts: dict[str, object] = field(default_factory=dict)
+    attempts: list[AttemptReport] = field(default_factory=list)
 
 
 class Worker(Protocol):

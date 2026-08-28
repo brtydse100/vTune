@@ -17,11 +17,11 @@ class ResultsManager:
 
     def save(self, context: TrialContext, outcome: WorkerResult[TrialContext]) -> TrialReport:
         report = TrialReport(
-            1, context.trial_id, outcome.status,
-            tuple(self._benchmark_document(result)
-                  for result in self._benchmark_results(context)),
-            {key: str(value) for key, value in context.artifacts.items()},
-            outcome.failure,
+            schema_version=1, trial_id=context.trial_id, status=outcome.status,
+            benchmarks=tuple(self._benchmark_document(result)
+                             for result in self._benchmark_results(context)),
+            artifacts={key: str(value) for key, value in context.artifacts.items()},
+            attempts=tuple(context.attempts), failure=outcome.failure,
         )
         self._write(report)
         return report

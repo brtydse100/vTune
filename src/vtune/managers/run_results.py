@@ -17,6 +17,7 @@ class RunResultsManager:
         self, run_id: str, metric: str, trials: tuple[TrialReport, ...],
         ranking: tuple[TrialScore, ...],
         benchmark_rankings: dict[str, tuple[TrialScore, ...]],
+        baseline: TrialScore | None = None,
     ) -> Path:
         document = {
             "schema_version": 1, "run_id": run_id, "maximize": metric,
@@ -24,6 +25,8 @@ class RunResultsManager:
             "trials": [_trial_document(item) for item in trials],
             "ranking": [_document(item) for item in ranking],
             "best": _document(ranking[0]) if ranking else None,
+            "baseline": _document(baseline) if baseline else None,
+            "improvement_percent": _improvement(ranking, baseline),
             "best_by_benchmark": {name: _document(values[0]) if values else None
                                   for name, values in benchmark_rankings.items()},
         }
@@ -37,6 +40,7 @@ class RunResultsManager:
         self, metric: str, trials: tuple[TrialReport, ...],
         ranking: tuple[TrialScore, ...],
         benchmark_rankings: dict[str, tuple[TrialScore, ...]],
+        baseline: TrialScore | None = None,
     ) -> str:
         counts = _status_counts(trials)
         lines = [f"Trials: {len(trials)} | completed={counts['completed']} "
@@ -49,6 +53,11 @@ class RunResultsManager:
                           f"Server env: {dict(best.server_env)}"))
         else:
             lines.append("Best overall: unavailable")
+        if baseline:
+            lines.append(f"Baseline: {baseline.value:.4f}")
+            improvement = _improvement(ranking, baseline)
+            if improvement is not None:
+                lines.append(f"Improvement over baseline: {improvement:+.2f}%")
         for report in trials:
             if report.failure:
                 lines.append(f"{report.trial_id}: {report.failure.code}: {report.failure.message}")
@@ -76,3 +85,11 @@ def _trial_document(report: TrialReport) -> dict[str, object]:
 def _status_counts(trials: tuple[TrialReport, ...]) -> dict[str, int]:
     return {status: sum(report.status.value == status for report in trials)
             for status in ("completed", "failed", "interrupted")}
+
+
+def _improvement(
+    ranking: tuple[TrialScore, ...], baseline: TrialScore | None
+) -> float | None:
+    if not ranking or baseline is None or baseline.value == 0:
+        return None
+    return (ranking[0].value - baseline.value) / baseline.value * 100

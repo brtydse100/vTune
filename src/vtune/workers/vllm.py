@@ -6,6 +6,7 @@ from pathlib import Path
 
 from vtune.domain.results import Failure, WorkerResult
 from vtune.workers.base import TrialContext
+from vtune.workers.attempts import attempt_path
 from vtune.workers.process import ManagedProcess, ProcessRunner, ProcessSpec
 
 
@@ -38,7 +39,8 @@ class VLLMRunnerWorker:
             )
 
         try:
-            process = await self._runner.start(spec, self._log_path)
+            log_path = attempt_path(self._log_path, context)
+            process = await self._runner.start(spec, log_path)
         except Exception as error:
             return WorkerResult.failed(
                 Failure(
@@ -49,7 +51,7 @@ class VLLMRunnerWorker:
 
         context.values["server_process"] = process
         context.values[self._ownership_key] = process
-        context.artifacts["vllm_log"] = str(self._log_path)
+        context.artifacts["vllm_log"] = str(log_path)
         return WorkerResult.completed()
 
     async def cleanup(self, context: TrialContext) -> None:

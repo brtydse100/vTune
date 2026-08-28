@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from time import monotonic
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
 from vtune.domain.results import Failure, WorkerResult
 from vtune.workers.base import TrialContext
+from vtune.workers.failure_details import classified_failure
 from vtune.workers.process import ManagedProcess
 
 HealthProbe = Callable[[str, float], Awaitable[bool]]
@@ -62,7 +64,7 @@ class ReadinessWorker:
         deadline = monotonic() + self._startup_timeout
         while True:
             if process.returncode is not None:
-                return self._early_exit(process.returncode)
+                return self._early_exit(process.returncode, context)
             remaining = deadline - monotonic()
             if remaining <= 0:
                 return WorkerResult.failed(
@@ -82,7 +84,7 @@ class ReadinessWorker:
             except TimeoutError:
                 healthy = False
             if process.returncode is not None:
-                return self._early_exit(process.returncode)
+                return self._early_exit(process.returncode, context)
             if healthy:
                 context.values["server_endpoint"] = self._endpoint
                 return WorkerResult.completed()
@@ -96,10 +98,11 @@ class ReadinessWorker:
         """Readiness owns no resources."""
 
     @staticmethod
-    def _early_exit(returncode: int) -> WorkerResult[None]:
+    def _early_exit(returncode: int, context: TrialContext) -> WorkerResult[None]:
+        log_path = context.artifacts.get("vllm_log", "")
         return WorkerResult.failed(
-            Failure(
-                "server_exited_early",
+            classified_failure(
+                Path(str(log_path)), "server_exited_early",
                 f"vLLM exited before becoming ready (code {returncode})",
             )
         )

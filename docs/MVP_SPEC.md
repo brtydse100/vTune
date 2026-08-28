@@ -203,8 +203,6 @@ model:
   revision: main
 
 server:
-  executable: vllm
-
   args:
     tensor-parallel-size: 4
     dtype: bfloat16
@@ -232,103 +230,54 @@ server:
       values: ["0", "1"]
 
 benchmark:
-  backend: guidellm
-  warmup:
-    duration: 30s
-  repeats: 3
-  repeat_aggregation: median
-
-  scenarios:
+  repeats: 3  # vTune automatically uses the median
+  runs:
     - name: chat-low-load
-      dataset: datasets/chat.jsonl
-      concurrency: 4
-      duration: 2m
+      request_format: /v1/completions
+      profile:
+        kind: concurrent
+        streams: [4]
+        warmup: 30
+      constraints:
+        - kind: max_duration
+          seconds: 2m
+      data:
+        - kind: synthetic_text
+          prompt_tokens: 1800
+          output_tokens: 20
 
     - name: chat-high-load
-      dataset: datasets/chat.jsonl
-      concurrency: 64
-      duration: 2m
-
-    - name: code-high-load
-      dataset: datasets/code.jsonl
-      concurrency: 64
-      duration: 2m
+      request_format: /v1/completions
+      profile:
+        kind: concurrent
+        streams: [64]
+        warmup: 30
+      constraints:
+        - kind: max_duration
+          seconds: 2m
+      data:
+        - kind: synthetic_text
+          prompt_tokens: 1800
+          output_tokens: 20
 
 baseline:
   enabled: true
-  server_args: {}
-  server_env: {}
 
 optimization:
-  sampler: tpe            # grid | random | tpe
-  trials: 50
-  startup_trials: 10
-
-  target:
-    name: overall-throughput
-    metric: output_tokens_per_second
-    direction: maximize
-    method: weighted_mean
-    normalize: baseline_ratio
-    scenario_weights:
-      chat-low-load: 1
-      chat-high-load: 3
-      code-high-load: 2
-
-  constraints:
-    - metric: ttft_p99_ms
-      operator: "<="
-      value: 500
-      scenarios: all
-      aggregation: max
-
-    - metric: tpot_p99_ms
-      operator: "<="
-      value: 40
-      filter:
-        dataset: datasets/chat.jsonl
-      aggregation: max
-
-analysis:
-  rankings:
-    - name: overall
-      method: optimization_target
-
-    - name: best-by-scenario
-      method: per_scenario
-      metric: output_tokens_per_second
-      direction: maximize
-
-    - name: best-by-dataset
-      method: per_group
-      group_by: dataset
-      metric: output_tokens_per_second
-      direction: maximize
-
-    - name: most-robust
-      method: worst_case
-      metric: output_tokens_per_second
-      direction: maximize
-      normalize: baseline_ratio
+  maximize: output_tokens_per_second
 
 timeouts:
-  startup: 15m
-  health_poll_interval: 2s
+  startup: 900
   benchmark: auto
-  shutdown_grace: 20s
 
 logging:
   verbose: false
   show_latest_server_status: true
 
 execution:
+  shutdown_grace: 20
   retry:
     max_attempts: 2
-    backoff: 5s
-    on:
-      - server_unhealthy
-      - benchmark_timeout
-      - benchmark_failed
 ```
 
 Unknown top-level vTune keys must be rejected with a useful validation error.

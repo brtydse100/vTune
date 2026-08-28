@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from statistics import fmean
+from statistics import fmean, median
 
 from vtune.domain.benchmark import BenchmarkResult
 
@@ -24,18 +24,17 @@ class ScoringManager:
         self.metric = metric
 
     def score(self, results: tuple[BenchmarkResult, ...]) -> float | None:
-        values = [value for result in results for workload in result.workloads
-                  if (value := _metric_value(workload.metrics.get(self.metric))) is not None]
+        values = tuple(self.score_each(results).values())
         return fmean(values) if values else None
 
     def score_each(self, results: tuple[BenchmarkResult, ...]) -> dict[str, float]:
-        scores: dict[str, float] = {}
+        grouped: dict[str, list[float]] = {}
         for result in results:
             values = [value for workload in result.workloads
                       if (value := _metric_value(workload.metrics.get(self.metric))) is not None]
             if values:
-                scores[result.run_name] = fmean(values)
-        return scores
+                grouped.setdefault(result.run_name, []).append(fmean(values))
+        return {name: float(median(values)) for name, values in grouped.items()}
 
     @staticmethod
     def rank(scores: list[TrialScore]) -> tuple[TrialScore, ...]:

@@ -7,6 +7,7 @@ from .trial_report import TrialReport
 
 __all__ = [
     "Attempt",
+    "AttemptReport",
     "AttemptStatus",
     "BenchmarkResult",
     "Failure",
@@ -21,3 +22,4 @@ __all__ = [
     "WorkloadResult",
 ]
 from .benchmark import BenchmarkResult, WorkloadResult
+from .attempt_report import AttemptReport

@@ -6,14 +6,19 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from vtune.benchmarks.guidellm import configured_runs
+from vtune.benchmarks.guidellm import configured_repeats, configured_runs
+from vtune.benchmarks.timing import timeout_for_run
 from vtune.config.models import VTuneConfig
+from vtune.config.runtime import (
+    baseline_enabled, max_attempts, maximize_metric, positive, server_port,
+)
 from vtune.domain.trial_report import TrialReport
 from vtune.managers.results import ResultsManager
 from vtune.managers.run_results import RunResultsManager
 from vtune.managers.scoring import ScoringManager, TrialScore
 from vtune.managers.trial import TrialManager
 from vtune.search.grid import TrialParameters, expand_grid
+from vtune.reporting import Reporter
 from vtune.workers.base import TrialContext, Worker
 from vtune.workers.benchmark import GuideLLMBenchmarkWorker
 from vtune.workers.configuration import ConfigurationBuilderWorker
@@ -34,13 +39,15 @@ class RunOutcome:
 class Orchestrator:
     def __init__(self, config: VTuneConfig) -> None:
         self._config = config
-        self._metric = _maximize_metric(config)
+        self._metric = maximize_metric(config)
         self._scoring = ScoringManager(self._metric)
 
     def validate(self) -> None:
         configured_runs(self._config)
+        configured_repeats(self._config)
         expand_grid(self._config)
-        _port(self._config)
+        server_port(self._config)
+        baseline_enabled(self._config)
 
     async def run(self) -> RunOutcome:
         self.validate()
@@ -51,6 +58,15 @@ class Orchestrator:
         benchmark_scores: dict[str, list[TrialScore]] = {
             str(run["name"]): [] for run in configured_runs(self._config)
         }
+        baseline_score: TrialScore | None = None
+        if baseline_enabled(self._config):
+            print("[baseline] starting", flush=True)
+            report, baseline_score, _ = await self._run_trial(
+                directory, TrialParameters("baseline", {}, {})
+            )
+            reports.append(report)
+            status = f"score={baseline_score.value:.4f}" if baseline_score else report.status.value
+            print(f"[baseline] {status}", flush=True)
         trials = expand_grid(self._config)
         for position, parameters in enumerate(trials, start=1):
             print(f"[{position}/{len(trials)}] {parameters.trial_id}: starting", flush=True)
@@ -69,8 +85,13 @@ class Orchestrator:
         by_benchmark = {name: self._scoring.rank(values)
                         for name, values in benchmark_scores.items()}
         results = RunResultsManager(directory / "result.json")
-        results.save(run_id, self._metric, tuple(reports), ranking, by_benchmark)
-        summary = results.summary(self._metric, tuple(reports), ranking, by_benchmark)
+        results.save(
+            run_id, self._metric, tuple(reports), ranking, by_benchmark, baseline_score
+        )
+        Reporter(directory).write(self._metric, tuple(reports), ranking, baseline_score)
+        summary = results.summary(
+            self._metric, tuple(reports), ranking, by_benchmark, baseline_score
+        )
         return RunOutcome(run_id, directory, tuple(reports), ranking, summary)
 
     async def _run_trial(
@@ -78,7 +99,9 @@ class Orchestrator:
     ) -> tuple[TrialReport, TrialScore | None, dict[str, float]]:
         trial_dir = directory / "trials" / parameters.trial_id
         context = TrialContext(parameters.trial_id)
-        outcome = await TrialManager(self._workers(parameters, trial_dir)).execute(context)
+        outcome = await TrialManager(
+            self._workers(parameters, trial_dir), max_attempts(self._config)
+        ).execute(context)
         report = ResultsManager(trial_dir / "result.json").save(context, outcome)
         raw = context.values.get("benchmark_results", ())
         results = raw if isinstance(raw, tuple) else ()
@@ -92,41 +115,20 @@ class Orchestrator:
 
     def _workers(self, parameters: TrialParameters, directory: Path) -> tuple[Worker, ...]:
         execution = self._config.execution
-        grace = _positive(execution, "shutdown_grace", 15)
+        grace = positive(execution, "shutdown_grace", 15)
         workers: tuple[Worker, ...] = (
             ConfigurationBuilderWorker(self._config, parameters.server_args, parameters.server_env),
             VLLMRunnerWorker(ProcessRunner(), directory / "vllm.log", grace),
             ReadinessWorker(host=str(execution.get("host", "127.0.0.1")),
-                            port=_port(self._config),
+                            port=server_port(self._config),
                             path=str(execution.get("health_path", "/health")),
-                            startup_timeout=_positive(self._config.timeouts, "startup", 900)),
+                            startup_timeout=positive(self._config.timeouts, "startup", 900)),
         )
+        repeats = configured_repeats(self._config)
         return workers + tuple(
             GuideLLMBenchmarkWorker(
                 self._config, run, ProcessRunner(), directory,
-                timeout=_positive(self._config.timeouts, "benchmark", 180),
-                shutdown_grace=grace,
-            ) for run in configured_runs(self._config)
+                timeout=timeout_for_run(run, self._config.timeouts.get("benchmark", "auto")),
+                shutdown_grace=grace, repeat_index=repeat,
+            ) for run in configured_runs(self._config) for repeat in range(1, repeats + 1)
         )
-
-
-def _maximize_metric(config: VTuneConfig) -> str:
-    unknown = set(config.optimization) - {"maximize"}
-    metric = config.optimization.get("maximize")
-    if unknown or not isinstance(metric, str) or not metric.strip():
-        raise ValueError("optimization requires only a non-empty 'maximize' metric")
-    return metric
-
-
-def _positive(values: object, key: str, default: float) -> float:
-    value = values.get(key, default)  # type: ignore[union-attr]
-    if isinstance(value, bool) or not isinstance(value, int | float) or value <= 0:
-        raise ValueError(f"'{key}' must be a positive number")
-    return float(value)
-
-
-def _port(config: VTuneConfig) -> int:
-    value = config.server.args.get("port", 8000)
-    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 65535:
-        raise ValueError("server.args.port must be a valid integer port")
-    return value

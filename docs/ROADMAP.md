@@ -132,6 +132,7 @@ Safety and correctness requirements:
 
 ### Dataset adapters
 
+- Multiple datasets within one named benchmark run.
 - Hugging Face dataset references with pinned revisions.
 - Local JSONL and compatible benchmark formats.
 - Synthetic prompt and output length distributions.

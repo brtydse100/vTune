@@ -1,0 +1,43 @@
+"""Validated runtime policy values derived from an experiment configuration."""
+
+from vtune.config.models import VTuneConfig
+
+
+def maximize_metric(config: VTuneConfig) -> str:
+    unknown = set(config.optimization) - {"maximize"}
+    metric = config.optimization.get("maximize")
+    if unknown or not isinstance(metric, str) or not metric.strip():
+        raise ValueError("optimization requires only a non-empty 'maximize' metric")
+    return metric
+
+
+def positive(values: object, key: str, default: float) -> float:
+    value = values.get(key, default)  # type: ignore[union-attr]
+    if isinstance(value, bool) or not isinstance(value, int | float) or value <= 0:
+        raise ValueError(f"'{key}' must be a positive number")
+    return float(value)
+
+
+def server_port(config: VTuneConfig) -> int:
+    value = config.server.args.get("port", 8000)
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 65535:
+        raise ValueError("server.args.port must be a valid integer port")
+    return value
+
+
+def max_attempts(config: VTuneConfig) -> int:
+    retry = config.execution.get("retry", {})
+    if not isinstance(retry, dict):
+        raise ValueError("execution.retry must be a mapping")
+    value = retry.get("max_attempts", 1)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError("execution.retry.max_attempts must be a positive integer")
+    return value
+
+
+def baseline_enabled(config: VTuneConfig) -> bool:
+    unknown = set(config.baseline) - {"enabled"}
+    enabled = config.baseline.get("enabled", True)
+    if unknown or not isinstance(enabled, bool):
+        raise ValueError("baseline supports only a boolean 'enabled' setting")
+    return enabled
