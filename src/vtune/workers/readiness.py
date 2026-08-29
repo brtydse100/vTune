@@ -10,6 +10,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
 from vtune.domain.results import Failure, WorkerResult
+from vtune.reproduction.models import StartupRecord
 from vtune.workers.base import TrialContext
 from vtune.workers.failure_details import classified_failure
 from vtune.workers.process import ManagedProcess
@@ -55,26 +56,35 @@ class ReadinessWorker:
         self._health_probe = health_probe
 
     async def execute(self, context: TrialContext) -> WorkerResult[None]:
+        marker = context.values.get("vllm_started_at")
+        started = float(marker) if isinstance(marker, int | float) else monotonic()
         process = context.values.get("server_process")
         if not isinstance(process, ManagedProcess):
             return WorkerResult.failed(
                 Failure("server_exited_early", "No managed server process is available")
             )
 
+        try:
+            return await self._wait_until_ready(process, context)
+        finally:
+            context.startups.append(StartupRecord(
+                int(context.values.get("attempt_index", 1)), monotonic() - started,
+            ))
+
+    async def _wait_until_ready(
+        self, process: ManagedProcess, context: TrialContext,
+    ) -> WorkerResult[None]:
         deadline = monotonic() + self._startup_timeout
         while True:
             if process.returncode is not None:
                 return self._early_exit(process.returncode, context)
             remaining = deadline - monotonic()
             if remaining <= 0:
-                return WorkerResult.failed(
-                    Failure(
-                        "server_startup_timeout",
-                        f"vLLM was not ready after {self._startup_timeout:g} seconds",
-                        retryable=True,
-                    )
-                )
-
+                return WorkerResult.failed(Failure(
+                    "server_startup_timeout",
+                    f"vLLM was not ready after {self._startup_timeout:g} seconds",
+                    retryable=True,
+                ))
             probe_timeout = min(self._request_timeout, remaining)
             try:
                 healthy = await asyncio.wait_for(
@@ -88,11 +98,9 @@ class ReadinessWorker:
             if healthy:
                 context.values["server_endpoint"] = self._endpoint
                 return WorkerResult.completed()
-
             remaining = deadline - monotonic()
-            if remaining <= 0:
-                continue
-            await asyncio.sleep(min(self._poll_interval, remaining))
+            if remaining > 0:
+                await asyncio.sleep(min(self._poll_interval, remaining))
 
     async def cleanup(self, context: TrialContext) -> None:
         """Readiness owns no resources."""

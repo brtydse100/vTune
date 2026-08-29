@@ -9,6 +9,7 @@ from pathlib import Path
 from vtune.benchmarks.guidellm import build_plan, parse_result
 from vtune.config.models import VTuneConfig
 from vtune.domain.results import Failure, WorkerResult
+from vtune.reproduction.models import CommandRecord
 from vtune.workers.base import TrialContext
 from vtune.workers.attempts import attempt_directory
 from vtune.workers.failure_details import classified_failure
@@ -46,6 +47,10 @@ class GuideLLMBenchmarkWorker:
             artifacts = artifacts / "repeats" / f"{self._repeat_index:03d}"
             plan = build_plan(self._config, self._run, endpoint, artifacts)
             plan.directory.mkdir(parents=True, exist_ok=True)
+            context.commands.append(CommandRecord(
+                "guidellm", plan.argv, int(context.values.get("attempt_index", 1)),
+                self._environment(), plan.run_name, self._repeat_index,
+            ))
             process = await self._runner.start(
                 ProcessSpec(plan.argv, env=self._environment()), plan.log_path
             )

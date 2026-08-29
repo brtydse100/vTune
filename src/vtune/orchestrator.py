@@ -20,6 +20,8 @@ from vtune.managers.scoring import ScoringManager, TrialScore
 from vtune.managers.trial import TrialManager
 from vtune.search import TrialParameters, create_search, validate_search
 from vtune.reporting import Reporter
+from vtune.reproduction.manifest import ManifestWriter
+from vtune.reproduction.metadata import collect_metadata
 from vtune.workers.base import TrialContext, Worker
 from vtune.workers.benchmark import GuideLLMBenchmarkWorker
 from vtune.workers.configuration import ConfigurationBuilderWorker
@@ -43,6 +45,7 @@ class Orchestrator:
         self._metric = maximize_metric(config)
         validate_search(config)
         self._scoring = ScoringManager(self._metric)
+        self._manifest = ManifestWriter({})
 
     def validate(self) -> None:
         configured_runs(self._config)
@@ -56,6 +59,7 @@ class Orchestrator:
         run_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
         directory = Path(self._config.experiment.output_dir) / self._config.experiment.name / run_id
         directory.mkdir(parents=True, exist_ok=True)
+        self._manifest = ManifestWriter(collect_metadata())
         reports: list[TrialReport] = []
         scores: list[TrialScore] = []
         benchmark_scores: dict[str, list[TrialScore]] = {
@@ -109,6 +113,10 @@ class Orchestrator:
         outcome = await TrialManager(
             self._workers(parameters, trial_dir), max_attempts(self._config)
         ).execute(context)
+        self._manifest.write(
+            trial_dir / "manifest.json", self._config, parameters,
+            context, outcome.status.value,
+        )
         report = ResultsManager(trial_dir / "result.json").save(context, outcome)
         raw = context.values.get("benchmark_results", ())
         results = raw if isinstance(raw, tuple) else ()

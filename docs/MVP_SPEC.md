@@ -399,6 +399,10 @@ For every successful server startup:
 The default repeat aggregation is median. Supported MVP aggregation methods
 are `mean`, `median`, `min`, and `max`.
 
+vTune never adds an implicit benchmark warm-up. Step 1 applies only when the
+user includes `warmup` in the GuideLLM profile, identically for baseline and
+tuned trials.
+
 ### 9.2 Primary score methods
 
 The primary target supports:
@@ -649,26 +653,20 @@ into a successful measurement.
 
 Every trial records:
 
-- Trial identifier and fingerprints.
-- Exact argument array and display-safe shell command.
-- Explicit environment variables with redaction metadata.
-- Model identifier and revision.
+- Trial identifier and status.
+- Exact vLLM and GuideLLM argument arrays.
+- Explicit environment overrides with secret-like values redacted.
+- Local model path and fixed/selected server parameters.
 - vLLM version.
 - GuideLLM version.
-- Python version and package inventory relevant to execution.
-- Operating-system and kernel information.
-- GPU model, count, visible device identifiers, driver, and CUDA information.
-- Benchmark scenarios and commands.
-- Warm-up and repeat policy.
-- Raw and aggregated metrics.
-- Constraint outcomes and ranking scores.
-- Startup, benchmark, shutdown, and total durations.
-- Process exit statuses.
-- Artifact paths.
+- vTune and Python versions plus operating-system information.
+- GPU name, UUID, memory, driver, and CUDA version when detectable.
+- Benchmark configuration, including only user-configured warm-up and repeats.
+- Server startup duration for each attempt that reached readiness checking.
 
-`vtune reproduce` prints the exact reconstructed launch and benchmark commands.
-By default it does not start processes. The explicit `--execute` flag may run
-the reproduction after showing what will execute.
+`vtune export --run RUN --trial ID` prints the stored vLLM launch command. It
+does not execute the command. Structured arrays in `manifest.json` remain the
+source of truth; shell rendering is for display and manual use.
 
 ## 16. CLI requirements
 
@@ -709,11 +707,11 @@ vLLM. A separate validation command is never a prerequisite.
 - Regenerates JSON, CSV, and HTML outputs entirely from persisted data.
 - Does not require vLLM, a GPU, or the original benchmark datasets.
 
-### `vtune export --run RUN` (optional)
+### `vtune export --run RUN --trial ID`
 
-- Supports CSV and JSON.
-- Includes both trial-level summaries and scenario-level results.
-- Has stable documented column and object names within schema version 1.
+- Shows the selected trial's safe POSIX-shell vLLM command.
+- Warns through `<redacted>` placeholders about values that must be supplied.
+- Never starts a process.
 
 ### `vtune reproduce --run RUN --trial ID` (optional)
 

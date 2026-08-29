@@ -5,20 +5,24 @@ from __future__ import annotations
 import argparse
 import asyncio
 from collections.abc import Sequence
+from pathlib import Path
 import sys
 
 from vtune.config.errors import ConfigError
 from vtune.config.loader import load_config
 from vtune.orchestrator import Orchestrator
+from vtune.reproduction.export import export_vllm_command
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vtune", description="Experiment with vLLM serving configurations."
     )
-    parser.add_argument("action", nargs="?", choices=("validate",),
-                        help="Validate without running; omit for a normal experiment.")
-    parser.add_argument("--config", "-c", required=True)
+    parser.add_argument("action", nargs="?", choices=("validate", "export"),
+                        help="Validate, export a trial, or omit to run.")
+    parser.add_argument("--config", "-c")
+    parser.add_argument("--run", type=Path)
+    parser.add_argument("--trial")
     parser.add_argument("--verbose", action="store_true")
     return parser
 
@@ -26,6 +30,13 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        if args.action == "export":
+            if args.run is None or not args.trial:
+                raise ValueError("export requires --run and --trial")
+            print(export_vllm_command(args.run, args.trial))
+            return 0
+        if not args.config:
+            raise ValueError("--config is required")
         config = load_config(args.config)
         if args.action == "validate":
             Orchestrator(config).validate()

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from time import monotonic
 
 from vtune.domain.results import Failure, WorkerResult
+from vtune.reproduction.models import CommandRecord
 from vtune.workers.base import TrialContext
 from vtune.workers.attempts import attempt_path
 from vtune.workers.process import ManagedProcess, ProcessRunner, ProcessSpec
@@ -40,6 +42,10 @@ class VLLMRunnerWorker:
 
         try:
             log_path = attempt_path(self._log_path, context)
+            context.commands.append(CommandRecord(
+                "vllm", spec.argv, int(context.values.get("attempt_index", 1)), spec.env,
+            ))
+            context.values["vllm_started_at"] = monotonic()
             process = await self._runner.start(spec, log_path)
         except Exception as error:
             return WorkerResult.failed(
