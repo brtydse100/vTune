@@ -20,6 +20,7 @@ class ManifestWriter:
     def write(
         self, path: Path, config: VTuneConfig, parameters: TrialParameters,
         context: TrialContext, status: str,
+        source: Mapping[str, str] | None = None,
     ) -> None:
         document = {
             "schema_version": 1,
@@ -33,10 +34,16 @@ class ManifestWriter:
                 "selected_env": redact_environment(_strings(parameters.server_env)),
             },
             "benchmark": dict(config.benchmark),
+            "policy": {
+                "timeouts": dict(config.timeouts),
+                "execution": dict(config.execution),
+            },
             "commands": [_command_document(command) for command in context.commands],
             "startup": [record.to_dict() for record in context.startups],
             "metadata": self._metadata,
         }
+        if source is not None:
+            document["source"] = dict(source)
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_suffix(path.suffix + ".tmp")
         temporary.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Mapping
 
 from vtune.domain.trial_report import TrialReport
 from vtune.managers.scoring import TrialScore
@@ -18,11 +19,16 @@ class RunResultsManager:
         ranking: tuple[TrialScore, ...],
         benchmark_rankings: dict[str, tuple[TrialScore, ...]],
         baseline: TrialScore | None = None,
+        *, status: str = "completed", started_at: str | None = None,
+        completed_at: str | None = None, source_run_id: str | None = None,
+        sources: Mapping[str, Mapping[str, str]] | None = None,
     ) -> Path:
+        links = sources or {}
         document = {
             "schema_version": 1, "run_id": run_id, "maximize": metric,
+            "status": status, "started_at": started_at, "completed_at": completed_at,
             "trial_counts": _status_counts(trials),
-            "trials": [_trial_document(item) for item in trials],
+            "trials": [_trial_document(item, links.get(item.trial_id)) for item in trials],
             "ranking": [_document(item) for item in ranking],
             "best": _document(ranking[0]) if ranking else None,
             "baseline": _document(baseline) if baseline else None,
@@ -30,6 +36,8 @@ class RunResultsManager:
             "best_by_benchmark": {name: _document(values[0]) if values else None
                                   for name, values in benchmark_rankings.items()},
         }
+        if source_run_id is not None:
+            document["source_run_id"] = source_run_id
         self._output_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self._output_path.with_suffix(self._output_path.suffix + ".tmp")
         temporary.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
@@ -73,13 +81,18 @@ def _document(score: TrialScore) -> dict[str, object]:
             "server_args": dict(score.server_args), "server_env": dict(score.server_env)}
 
 
-def _trial_document(report: TrialReport) -> dict[str, object]:
+def _trial_document(
+    report: TrialReport, source: Mapping[str, str] | None = None,
+) -> dict[str, object]:
     failure = None
     if report.failure:
         failure = {"code": report.failure.code, "message": report.failure.message,
                    "retryable": report.failure.retryable}
-    return {"trial_id": report.trial_id, "status": report.status.value,
-            "failure": failure, "benchmark_count": len(report.benchmarks)}
+    document = {"trial_id": report.trial_id, "status": report.status.value,
+                "failure": failure, "benchmark_count": len(report.benchmarks)}
+    if source is not None:
+        document["source"] = dict(source)
+    return document
 
 
 def _status_counts(trials: tuple[TrialReport, ...]) -> dict[str, int]:

@@ -32,7 +32,7 @@ Rank results and generate reports
 
 The MVP must be dependable enough to run unattended for several hours. Search
 sophistication and presentation polish are secondary to correct process
-management, trustworthy measurements, retryability, comparison, and
+management, trustworthy measurements, retryability, reporting, and
 reproducibility.
 
 ## 2. Product promise
@@ -60,7 +60,6 @@ new vLLM options can be tested without a vTune release.
 - Overall, per-scenario, and per-dataset result rankings.
 - SQLite-backed persistence with immutable timestamped runs.
 - Automatic retry attempts for selected transient failures.
-- Basic comparison between completed or interrupted runs.
 - Health-based startup detection and reliable process cleanup.
 - Warm-up, repeated measurements, and configurable aggregation.
 - Trial-level failure isolation and structured failure categories.
@@ -85,6 +84,7 @@ new vLLM options can be tested without a vTune release.
 - Automatic correctness or output-quality evaluation.
 - Conditional search-space expressions.
 - Automatic detection of all invalid parameter combinations.
+- Dedicated cross-run comparison commands and compatibility analysis.
 
 These are roadmap items rather than rejected ideas. The MVP architecture must
 leave room for them without implementing them prematurely.
@@ -181,8 +181,8 @@ vtune report --run runs/qwen-h100
 vtune export --run runs/qwen-h100 --format csv
 vtune reproduce --run runs/qwen-h100 --trial 17
 vtune retry --run runs/qwen-h100/20260828-143012 --trial 17
-vtune compare --base runs/qwen-h100/20260827-090000 \
-  --candidate runs/qwen-h100/20260828-143012
+vtune retry --run runs/qwen-h100/20260828-143012 \
+  --trial 17 --trial 23
 ```
 
 The exact package name may change before publication if naming or package-index
@@ -596,8 +596,8 @@ change could affect results.
 - Every invocation creates a new run under the named experiment directory.
 - Run directories use a collision-safe timestamped identifier.
 - Finished and interrupted runs are never overwritten or continued.
-- Partial results from an interrupted run remain reportable and comparable.
-- Manual retries create a linked run with `source_run_id` and `source_trial_id`.
+- Partial results from an interrupted run remain reportable.
+- Manual retries create a linked run with `source_run_id` and per-trial source links.
 - A future seeding feature may teach a new optimizer about previous results
   without changing the original run.
 
@@ -607,9 +607,10 @@ For Random and TPE runs, Optuna stores search parameters, scalar scores, and
 trial states in `study.db`. vTune's backend-neutral domain results remain in
 `result.json`; the Optuna schema is not their source of truth.
 
-Filesystem artifacts are written atomically where practical. A crash between
-database and artifact writes must be detectable. Stale active attempts are
-marked `interrupted`; a subsequent invocation creates a new run.
+Filesystem artifacts are written atomically where practical. `result.json` is
+created with `running` status before trial execution and updated after every
+trial. Graceful interruption changes it to `interrupted`; an abrupt process or
+machine failure may leave the detectable `running` status unchanged.
 
 ## 14. Benchmark adapter contract
 
@@ -719,18 +720,15 @@ vLLM. A separate validation command is never a prerequisite.
 - Warns about redacted values that must be supplied.
 - Requires `--execute` before executing anything.
 
-### `vtune retry --run RUN --trial ID` (optional)
+### `vtune retry --run RUN --trial ID [--trial ID ...]`
 
-- Creates a new validation run linked to the selected source trial.
-- Reuses the exact stored server configuration and benchmark scenarios.
+- Creates a new validation run containing only the selected source trials.
+- Reuses each stored server configuration and the shared benchmark scenarios.
+- Restores redacted configured variables from the current environment or fails clearly.
 - Never modifies the source run or its attempts.
 
-### `vtune compare --base RUN --candidate RUN` (optional)
-
-- Compares matching scenarios and normalized metrics.
-- Reports absolute and percentage differences.
-- Warns about differences in models, datasets, backends, software, or hardware.
-- Refuses metric comparisons whose definitions or scenario identities differ.
+Dedicated cross-run comparison is a roadmap feature. MVP users compare the
+existing HTML, CSV, and JSON reports directly.
 
 ## 17. Terminal experience
 
@@ -828,7 +826,7 @@ Required separation rules:
   `interrupted` outcomes.
 - The run orchestrator, not a worker, decides whether to retry an attempt.
 - The results manager is the single authoritative path for persistence,
-  scoring, ranking, and comparison.
+  scoring, and ranking.
 
 ## 20. Suggested domain records
 
@@ -915,12 +913,6 @@ The MVP is complete only when all of the following are demonstrated.
 - An interrupted run remains unchanged and reportable.
 - Starting the same configuration again creates a separate run.
 
-### Comparison
-
-- Two compatible runs can be compared by matching scenario and metric.
-- Differences in relevant environment metadata produce clear warnings.
-- Incompatible scenario or metric definitions are not silently compared.
-
 ### Reproducibility
 
 - A completed trial exports its structured arguments, explicit environment,
@@ -946,10 +938,9 @@ The MVP is complete only when all of the following are demonstrated.
 7. Grid and random planners.
 8. Optuna TPE integration.
 9. Retry attempts and immutable run linking.
-10. Basic run comparison.
-11. Exports, reproduction manifests, and terminal summaries.
-12. Static HTML report and parameter importance.
-13. End-to-end fault-injection and interruption testing.
+10. Exports, reproduction manifests, and terminal summaries.
+11. Static HTML report and parameter importance.
+12. End-to-end fault-injection and interruption testing.
 
 This ordering intentionally proves the reliable experiment runner before
 adding optimizer complexity.
@@ -959,5 +950,5 @@ adding optimizer complexity.
 The first MVP is done when a user can start a multi-hour local experiment,
 experience invalid configurations, OOM failures, benchmark failures, and a
 manual interruption, then inspect the immutable partial run, retry selected
-work in a linked run, and compare trustworthy results without manually cleaning
+work in a linked run, and inspect trustworthy reports without manually cleaning
 up processes or repairing experiment state.

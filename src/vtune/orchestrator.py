@@ -5,29 +5,27 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Mapping
 
 from vtune.benchmarks.guidellm import configured_repeats, configured_runs
-from vtune.benchmarks.timing import timeout_for_run
 from vtune.config.models import VTuneConfig
 from vtune.config.runtime import (
-    baseline_enabled, max_attempts, maximize_metric, positive, server_port,
+    baseline_enabled, max_attempts, maximize_metric, server_port,
 )
 from vtune.domain.results import WorkerStatus
 from vtune.domain.trial_report import TrialReport
 from vtune.managers.results import ResultsManager
 from vtune.managers.run_results import RunResultsManager
+from vtune.managers.run_session import RunAccumulator
 from vtune.managers.scoring import ScoringManager, TrialScore
 from vtune.managers.trial import TrialManager
 from vtune.search import TrialParameters, create_search, validate_search
+from vtune.search.fixed_session import FixedSearchSession
 from vtune.reporting import Reporter
 from vtune.reproduction.manifest import ManifestWriter
 from vtune.reproduction.metadata import collect_metadata
-from vtune.workers.base import TrialContext, Worker
-from vtune.workers.benchmark import GuideLLMBenchmarkWorker
-from vtune.workers.configuration import ConfigurationBuilderWorker
-from vtune.workers.process import ProcessRunner
-from vtune.workers.readiness import ReadinessWorker
-from vtune.workers.vllm import VLLMRunnerWorker
+from vtune.workers.base import TrialContext
+from vtune.workers.factory import build_trial_workers
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,73 +35,88 @@ class RunOutcome:
     trials: tuple[TrialReport, ...]
     ranking: tuple[TrialScore, ...]
     summary: str
+    status: str
 
 
 class Orchestrator:
-    def __init__(self, config: VTuneConfig) -> None:
+    def __init__(
+        self, config: VTuneConfig,
+        trials: tuple[TrialParameters, ...] | None = None,
+        source_run_id: str | None = None,
+        sources: Mapping[str, Mapping[str, str]] | None = None,
+    ) -> None:
         self._config = config
         self._metric = maximize_metric(config)
-        validate_search(config)
+        if trials is None:
+            validate_search(config)
         self._scoring = ScoringManager(self._metric)
         self._manifest = ManifestWriter({})
+        self._retry_trials = trials
+        self._source_run_id = source_run_id
+        self._sources = dict(sources or {})
 
     def validate(self) -> None:
         configured_runs(self._config)
         configured_repeats(self._config)
-        validate_search(self._config)
+        if self._retry_trials is None:
+            validate_search(self._config)
         server_port(self._config)
         baseline_enabled(self._config)
 
     async def run(self) -> RunOutcome:
         self.validate()
         run_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
+        started_at = datetime.now(timezone.utc).isoformat()
         directory = Path(self._config.experiment.output_dir) / self._config.experiment.name / run_id
         directory.mkdir(parents=True, exist_ok=True)
+        results = RunResultsManager(directory / "result.json")
+        names = tuple(str(run["name"]) for run in configured_runs(self._config))
+        session = RunAccumulator(names, self._scoring)
+        session.persist(results, run_id, self._metric, "running", started_at, None,
+                        self._source_run_id, self._sources)
         self._manifest = ManifestWriter(collect_metadata())
-        reports: list[TrialReport] = []
-        scores: list[TrialScore] = []
-        benchmark_scores: dict[str, list[TrialScore]] = {
-            str(run["name"]): [] for run in configured_runs(self._config)
-        }
-        baseline_score: TrialScore | None = None
-        if baseline_enabled(self._config):
+        interrupted = False
+        if self._retry_trials is None and baseline_enabled(self._config):
             print("[baseline] starting", flush=True)
-            report, baseline_score, _ = await self._run_trial(
-                directory, TrialParameters("baseline", {}, {})
+            parameters = TrialParameters("baseline", {}, {})
+            report, score, by_benchmark = await self._run_trial(
+                directory, parameters
             )
-            reports.append(report)
-            status = f"score={baseline_score.value:.4f}" if baseline_score else report.status.value
+            session.record(parameters, report, score, by_benchmark, baseline=True)
+            session.persist(results, run_id, self._metric, "running", started_at, None,
+                            self._source_run_id, self._sources)
+            status = f"score={score.value:.4f}" if score else report.status.value
             print(f"[baseline] {status}", flush=True)
-        search = create_search(self._config, directory)
+            interrupted = report.status is WorkerStatus.INTERRUPTED
+        search = (FixedSearchSession(self._retry_trials) if self._retry_trials is not None
+                  else create_search(self._config, directory))
         position = 0
-        while (parameters := search.suggest()) is not None:
+        while not interrupted and (parameters := search.suggest()) is not None:
             position += 1
             print(f"[{position}/{search.total}] {parameters.trial_id}: starting", flush=True)
             report, score, scores_by_benchmark = await self._run_trial(directory, parameters)
-            reports.append(report)
+            session.record(parameters, report, score, scores_by_benchmark)
             if score is not None:
-                scores.append(score)
                 search.complete(parameters, score.value)
                 print(f"[{position}/{search.total}] completed score={score.value:.4f}")
             else:
                 search.fail(parameters, report.status is WorkerStatus.INTERRUPTED)
                 print(f"[{position}/{search.total}] {report.status.value}")
-            for name, value in scores_by_benchmark.items():
-                args = {**self._config.server.args, **parameters.server_args}
-                env = {**self._config.server.env, **parameters.server_env}
-                benchmark_scores[name].append(TrialScore(parameters.trial_id, value, args, env))
-        ranking = self._scoring.rank(scores)
-        by_benchmark = {name: self._scoring.rank(values)
-                        for name, values in benchmark_scores.items()}
-        results = RunResultsManager(directory / "result.json")
-        results.save(
-            run_id, self._metric, tuple(reports), ranking, by_benchmark, baseline_score
-        )
-        Reporter(directory).write(self._metric, tuple(reports), ranking, baseline_score)
+            session.persist(results, run_id, self._metric, "running", started_at, None,
+                            self._source_run_id, self._sources)
+            if report.status is WorkerStatus.INTERRUPTED:
+                break
+        status = _run_status(tuple(session.reports))
+        completed_at = datetime.now(timezone.utc).isoformat()
+        session.persist(results, run_id, self._metric, status, started_at, completed_at,
+                        self._source_run_id, self._sources)
+        reports, ranking = tuple(session.reports), session.ranking
+        by_benchmark = session.benchmark_rankings
+        Reporter(directory).write(self._metric, reports, ranking, session.baseline)
         summary = results.summary(
-            self._metric, tuple(reports), ranking, by_benchmark, baseline_score
+            self._metric, reports, ranking, by_benchmark, session.baseline
         )
-        return RunOutcome(run_id, directory, tuple(reports), ranking, summary)
+        return RunOutcome(run_id, directory, reports, ranking, summary, status)
 
     async def _run_trial(
         self, directory: Path, parameters: TrialParameters,
@@ -111,11 +124,11 @@ class Orchestrator:
         trial_dir = directory / "trials" / parameters.trial_id
         context = TrialContext(parameters.trial_id)
         outcome = await TrialManager(
-            self._workers(parameters, trial_dir), max_attempts(self._config)
+            build_trial_workers(self._config, parameters, trial_dir),
+            max_attempts(self._config),
         ).execute(context)
-        self._manifest.write(
-            trial_dir / "manifest.json", self._config, parameters,
-            context, outcome.status.value,
+        self._manifest.write(trial_dir / "manifest.json", self._config, parameters,
+            context, outcome.status.value, self._sources.get(parameters.trial_id),
         )
         report = ResultsManager(trial_dir / "result.json").save(context, outcome)
         raw = context.values.get("benchmark_results", ())
@@ -128,22 +141,9 @@ class Orchestrator:
         env = {**self._config.server.env, **parameters.server_env}
         return report, TrialScore(parameters.trial_id, value, args, env), by_benchmark
 
-    def _workers(self, parameters: TrialParameters, directory: Path) -> tuple[Worker, ...]:
-        execution = self._config.execution
-        grace = positive(execution, "shutdown_grace", 15)
-        workers: tuple[Worker, ...] = (
-            ConfigurationBuilderWorker(self._config, parameters.server_args, parameters.server_env),
-            VLLMRunnerWorker(ProcessRunner(), directory / "vllm.log", grace),
-            ReadinessWorker(host=str(execution.get("host", "127.0.0.1")),
-                            port=server_port(self._config),
-                            path=str(execution.get("health_path", "/health")),
-                            startup_timeout=positive(self._config.timeouts, "startup", 900)),
-        )
-        repeats = configured_repeats(self._config)
-        return workers + tuple(
-            GuideLLMBenchmarkWorker(
-                self._config, run, ProcessRunner(), directory,
-                timeout=timeout_for_run(run, self._config.timeouts.get("benchmark", "auto")),
-                shutdown_grace=grace, repeat_index=repeat,
-            ) for run in configured_runs(self._config) for repeat in range(1, repeats + 1)
-        )
+def _run_status(reports: tuple[TrialReport, ...]) -> str:
+    if any(report.status is WorkerStatus.INTERRUPTED for report in reports):
+        return "interrupted"
+    if any(report.status is WorkerStatus.FAILED for report in reports):
+        return "completed_with_failures"
+    return "completed"

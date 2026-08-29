@@ -14,6 +14,15 @@ vtune --config experiment.yaml
 The short form is `vtune -c experiment.yaml`. The command validates the file,
 runs the experiment, persists results, and generates its exports and report.
 
+Retry one or more selected trials into a new immutable linked run:
+
+```bash
+vtune retry --run runs/EXPERIMENT/RUN_ID \
+  --trial trial-0001 --trial trial-0004
+```
+
+The source run is never modified.
+
 ## Product documents
 
 - [First MVP specification](docs/MVP_SPEC.md)
