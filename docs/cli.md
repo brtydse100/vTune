@@ -29,4 +29,15 @@ vtune reproduce --run runs/NAME/RUN_ID --trial trial-0001
 This reads stored artifacts and prints the vLLM and benchmark commands. It does
 not start a server or execute the commands.
 
+## Regenerate a report offline
+
+```bash
+vtune report --run runs/NAME/RUN_ID
+vtune report --run runs/NAME/RUN_ID --output /tmp/vtune-report
+```
+
+The command reads the immutable run and trial results without loading a model
+or invoking vLLM or GuideLLM. By default it creates a timestamped directory
+under `RUN_ID/regenerated/`; an existing destination is never overwritten.
+
 Use `vtune --help` or a subcommand's `--help` for the complete option list.

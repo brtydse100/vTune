@@ -14,8 +14,9 @@ from vtune.reproduction.redaction import redact_environment, redact_values
 
 
 class Reporter:
-    def __init__(self, directory: Path) -> None:
+    def __init__(self, directory: Path, artifact_directory: Path | None = None) -> None:
         self._directory = Path(directory)
+        self._artifact_directory = Path(artifact_directory or directory)
 
     def write(
         self, metric: str, trials: tuple[TrialReport, ...],
@@ -30,7 +31,7 @@ class Reporter:
         self._write_csv(csv_path, safe_ranking)
         html_path.write_text(
             render_dashboard(
-                self._directory, metric, trials, safe_ranking, safe_baseline,
+                self._artifact_directory, metric, trials, safe_ranking, safe_baseline,
                 context or ReportContext(),
             ),
             encoding="utf-8",

@@ -13,6 +13,7 @@ from vtune.config.loader import load_config
 from vtune.cli_options import CLIUsageError, validate_cli_options
 from vtune.lifecycle import load_retry_plan
 from vtune.orchestrator import Orchestrator
+from vtune.reporting.offline import regenerate_report
 from vtune.reproduction.display import reproduce_trial
 from vtune.reproduction.export import export_vllm_command
 from vtune.terminal import with_debug_logging
@@ -23,7 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="vtune", description="Experiment with vLLM serving configurations."
     )
     parser.add_argument(
-        "action", nargs="?", choices=("validate", "export", "reproduce", "retry"),
+        "action", nargs="?", choices=("validate", "export", "reproduce", "retry", "report"),
         help="Post-run action; omit to start a new experiment.")
     parser.add_argument("--config", "-c", metavar="YAML",
                         help="Experiment YAML for a new run or validation.")
@@ -31,6 +32,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Existing immutable run directory.")
     parser.add_argument("--trial", action="append", metavar="ID",
                         help="Trial ID; repeat the option when retrying several trials.")
+    parser.add_argument("--output", type=Path, metavar="DIRECTORY",
+                        help="Destination for an offline regenerated report.")
     parser.add_argument("--verbose", action="store_true",
                         help="Override logging.level with DEBUG and stream child logs.")
     return parser
@@ -54,6 +57,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             outcome = asyncio.run(Orchestrator(
                 retry_config, plan.trials, plan.source_run_id, plan.sources,
             ).run())
+        elif args.action == "report":
+            generated = regenerate_report(args.run, args.output)
+            print(f"Offline report regenerated: {generated.directory}")
+            return 0
         else:
             config = load_config(args.config)
             config = with_debug_logging(config) if args.verbose else config

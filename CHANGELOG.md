@@ -1,5 +1,13 @@
 # Release notes
 
+## Unreleased
+
+### Reports
+
+- Added offline report regeneration from validated immutable run artifacts.
+  Regeneration never starts vLLM or GuideLLM and never overwrites an existing
+  destination.
+
 ## v0.1.0a1 — Local vLLM tuning, reproducible trials, and decision reports
 
 _August 30, 2026_

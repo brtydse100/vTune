@@ -17,3 +17,16 @@ without being ranked as successful results.
 Each trial directory also contains its resolved configuration, normalized
 result, reproduction manifest, `vllm.log`, and `benchmark.log`. Persistent
 values are secret-redacted.
+
+## Offline regeneration
+
+Regenerate `report.html`, `results.csv`, and a validated copy of `result.json`
+from stored artifacts alone:
+
+```bash
+vtune report --run runs/NAME/RUN_ID
+```
+
+The report uses reproduction manifests from the source run while writing all
+new output to a separate directory. Missing, corrupt, or mismatched artifacts
+stop regeneration with a clear error instead of producing a partial report.
