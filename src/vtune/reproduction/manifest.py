@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Mapping
 
 from vtune.config.models import VTuneConfig
+from vtune.lifecycle.integrity import describe_artifacts
 from vtune.reproduction.models import CommandRecord
 from vtune.reproduction.redaction import redact_environment
 from vtune.search.grid import TrialParameters
@@ -38,6 +39,7 @@ class ManifestWriter:
                 "timeouts": dict(config.timeouts),
                 "execution": dict(config.execution),
             },
+            "artifacts": describe_artifacts(context.artifacts),
             "commands": [_command_document(command) for command in context.commands],
             "startup": [record.to_dict() for record in context.startups],
             "metadata": self._metadata,

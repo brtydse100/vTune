@@ -16,7 +16,7 @@ from vtune.domain.results import WorkerStatus
 from vtune.domain.trial_report import TrialReport
 from vtune.managers.results import ResultsManager
 from vtune.managers.run_results import RunResultsManager
-from vtune.managers.run_session import RunAccumulator
+from vtune.managers.run_session import RunAccumulator, run_status
 from vtune.managers.scoring import ScoringManager, TrialScore
 from vtune.managers.trial import TrialManager
 from vtune.search import TrialParameters, create_search, validate_search
@@ -74,6 +74,7 @@ class Orchestrator:
         session = RunAccumulator(names, self._scoring)
         session.persist(results, run_id, self._metric, "running", started_at, None,
                         self._source_run_id, self._sources)
+        print(f"Run: {run_id}\nDirectory: {directory.resolve()}", flush=True)
         self._manifest = ManifestWriter(collect_metadata())
         interrupted = False
         if self._retry_trials is None and baseline_enabled(self._config):
@@ -106,16 +107,16 @@ class Orchestrator:
                             self._source_run_id, self._sources)
             if report.status is WorkerStatus.INTERRUPTED:
                 break
-        status = _run_status(tuple(session.reports))
+        status = run_status(tuple(session.reports))
         completed_at = datetime.now(timezone.utc).isoformat()
         session.persist(results, run_id, self._metric, status, started_at, completed_at,
                         self._source_run_id, self._sources)
         reports, ranking = tuple(session.reports), session.ranking
         by_benchmark = session.benchmark_rankings
         Reporter(directory).write(self._metric, reports, ranking, session.baseline)
-        summary = results.summary(
-            self._metric, reports, ranking, by_benchmark, session.baseline
-        )
+        details = results.summary(
+            self._metric, reports, ranking, by_benchmark, session.baseline)
+        summary = f"Run status: {status}\n{details}"
         return RunOutcome(run_id, directory, reports, ranking, summary, status)
 
     async def _run_trial(
@@ -127,10 +128,14 @@ class Orchestrator:
             build_trial_workers(self._config, parameters, trial_dir),
             max_attempts(self._config),
         ).execute(context)
-        self._manifest.write(trial_dir / "manifest.json", self._config, parameters,
+        manifest_path = trial_dir / "manifest.json"
+        result_path = trial_dir / "result.json"
+        context.artifacts["manifest"] = str(manifest_path)
+        report = ResultsManager(result_path).save(context, outcome)
+        context.artifacts["trial_result"] = str(result_path)
+        self._manifest.write(manifest_path, self._config, parameters,
             context, outcome.status.value, self._sources.get(parameters.trial_id),
         )
-        report = ResultsManager(trial_dir / "result.json").save(context, outcome)
         raw = context.values.get("benchmark_results", ())
         results = raw if isinstance(raw, tuple) else ()
         value = self._scoring.score(results)
@@ -140,10 +145,3 @@ class Orchestrator:
         args = {**self._config.server.args, **parameters.server_args}
         env = {**self._config.server.env, **parameters.server_env}
         return report, TrialScore(parameters.trial_id, value, args, env), by_benchmark
-
-def _run_status(reports: tuple[TrialReport, ...]) -> str:
-    if any(report.status is WorkerStatus.INTERRUPTED for report in reports):
-        return "interrupted"
-    if any(report.status is WorkerStatus.FAILED for report in reports):
-        return "completed_with_failures"
-    return "completed"

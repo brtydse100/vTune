@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Mapping
 
+from vtune.domain.results import WorkerStatus
 from vtune.domain.trial_report import TrialReport
 from vtune.managers.run_results import RunResultsManager
 from vtune.managers.scoring import ScoringManager, TrialScore
@@ -58,3 +59,11 @@ class RunAccumulator:
             started_at=started_at, completed_at=completed_at,
             source_run_id=source_run_id, sources=sources,
         )
+
+
+def run_status(reports: tuple[TrialReport, ...]) -> str:
+    if any(report.status is WorkerStatus.INTERRUPTED for report in reports):
+        return "interrupted"
+    if any(report.status is WorkerStatus.FAILED for report in reports):
+        return "completed_with_failures"
+    return "completed"

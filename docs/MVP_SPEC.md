@@ -612,6 +612,12 @@ created with `running` status before trial execution and updated after every
 trial. Graceful interruption changes it to `interrupted`; an abrupt process or
 machine failure may leave the detectable `running` status unchanged.
 
+New trial manifests record SHA-256 checksums and sizes for generated logs,
+benchmark JSON, and the trial result. Retry treats the source result, selected
+trial directories, and manifests as required. Missing or malformed required
+artifacts stop retry; missing or changed optional historical artifacts produce
+warnings and do not prevent execution.
+
 ## 14. Benchmark adapter contract
 
 Although the MVP implements only GuideLLM, it must use an internal adapter
@@ -735,6 +741,9 @@ existing HTML, CSV, and JSON reports directly.
 Default output is concise:
 
 ```text
+Run: 20260829-071048-563612
+Directory: /home/user/runs/qwen-h100/20260829-071048-563612
+
 Study: qwen-h100
 Sampler: TPE (seed 42)
 Trials: 50 | Scenarios: 3 | Repeats: 3
@@ -754,6 +763,8 @@ Baseline  Completed
 [01/50] Completed score=1.14x baseline
 
 [02/50] Failed: server_oom
+
+Run status: completed_with_failures
 ```
 
 Raw process output is written to files. `--verbose` also streams it with clear

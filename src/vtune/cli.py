@@ -40,6 +40,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.run is None or not args.trial:
                 raise ValueError("retry requires --run and one or more --trial values")
             plan = load_retry_plan(args.run, args.trial)
+            for warning in plan.warnings:
+                print(f"Integrity warning: {warning}", file=sys.stderr)
             outcome = asyncio.run(Orchestrator(
                 plan.config, plan.trials, plan.source_run_id, plan.sources,
             ).run())

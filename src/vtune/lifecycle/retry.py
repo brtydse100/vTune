@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
 import os
 from pathlib import Path
 import re
 from typing import Mapping
 
 from vtune.config.models import ExperimentConfig, ModelConfig, ServerConfig, VTuneConfig
+from vtune.lifecycle.integrity import load_retry_source
 from vtune.reproduction.redaction import REDACTED
 from vtune.search.grid import TrialParameters
 
@@ -22,6 +22,7 @@ class RetryPlan:
     trials: tuple[TrialParameters, ...]
     source_run_id: str
     sources: Mapping[str, Mapping[str, str]]
+    warnings: tuple[str, ...] = ()
 
 
 def load_retry_plan(run: Path, trial_ids: list[str]) -> RetryPlan:
@@ -29,9 +30,7 @@ def load_retry_plan(run: Path, trial_ids: list[str]) -> RetryPlan:
     if (not trial_ids or len(set(trial_ids)) != len(trial_ids)
             or any(not _TRIAL_ID.fullmatch(trial) for trial in trial_ids)):
         raise ValueError("retry requires one or more unique --trial values")
-    result = _document(source / "result.json", "source result")
-    manifests = [_document(source / "trials" / trial / "manifest.json", trial)
-                 for trial in trial_ids]
+    result, manifests, warnings = load_retry_source(source, trial_ids)
     model = _same(manifests, "model_path")
     benchmark = _same(manifests, "benchmark")
     selected = [_parameters(manifest) for manifest in manifests]
@@ -58,15 +57,7 @@ def load_retry_plan(run: Path, trial_ids: list[str]) -> RetryPlan:
     ) for trial_id, values in zip(trial_ids, selected, strict=True))
     run_id = _text(result.get("run_id"), "run_id")
     sources = {trial: {"run_id": run_id, "trial_id": trial} for trial in trial_ids}
-    return RetryPlan(config, trials, run_id, sources)
-
-
-def _document(path: Path, label: str) -> dict[str, object]:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        raise ValueError(f"Cannot read {label} '{path}': {error}") from error
-    return _mapping(value, label)
+    return RetryPlan(config, trials, run_id, sources, warnings)
 
 
 def _parameters(manifest: Mapping[str, object]) -> dict[str, object]:
