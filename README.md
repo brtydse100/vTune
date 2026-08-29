@@ -6,8 +6,21 @@ vTune manages the server lifecycle, runs repeatable benchmarks, explores the
 search space, and reports which configurations performed best.
 
 vTune is alpha software targeting Linux with NVIDIA GPUs and Python 3.11–3.12.
-The current WSL playground is tested with vLLM 0.10.2 and GuideLLM 0.7.3;
-other combinations may work but are not yet part of the compatibility matrix.
+
+Tested integrations:
+
+- vLLM 0.10.2 with GuideLLM 0.7.3 on WSL2 and an RTX 3080.
+- vLLM 0.28.0 with GuideLLM 0.7.3 on the same system. WSL2 required
+  `VLLM_USE_V2_MODEL_RUNNER: "0"` because UVA was unavailable and
+  `VLLM_USE_FLASHINFER_SAMPLER: "0"` because the CUDA compiler toolkit was
+  not installed. Native Linux systems may not require these settings.
+
+Other combinations may work but are not yet verified.
+
+The published `py3-none-any` wheel installs on Linux and Windows. Configuration
+validation and stored-result inspection work on Windows, but starting an
+experiment is supported only on Linux because vLLM has no native Windows
+runtime.
 
 ## Quick start
 
@@ -110,6 +123,7 @@ the declared search space.
 - [Architecture overview and early sketch](docs/ARCHITECTURE.md)
 - [Editable Draw.io architecture diagram](docs/vtune-architecture.drawio)
 - [Contributor guide](CONTRIBUTING.md)
+- [Release notes](CHANGELOG.md)
 
 The MVP specification defines the first releasable version and its acceptance
 criteria. The roadmap describes capabilities that should be designed for now
