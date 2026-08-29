@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+The next prerelease is planned as `v0.1.0a2`. See its
+[draft release notes](docs/releases/v0.1.0a2.md).
+
 ### Reports
 
 - Added offline report regeneration from validated immutable run artifacts.
@@ -14,6 +17,13 @@
   the required local model at `server.model`. Tunable arguments, fixed
   environment variables, and tunable environment variables now use top-level
   `tune`, `env`, and `tune_env` sections.
+
+### Project delivery
+
+- Added pull-request package and documentation checks across supported Python
+  versions, with immutable Node 24 action revisions.
+- Added code ownership and protected-main contribution guidance.
+- Clarified CUDA compatibility and simplified the five-minute quick start.
 
 ## v0.1.0a1 — Local vLLM tuning, reproducible trials, and decision reports
 

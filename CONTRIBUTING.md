@@ -3,6 +3,10 @@
 vTune favors small, explicit components over framework-heavy abstractions.
 Read [the architecture](docs/ARCHITECTURE.md) before changing execution flow.
 
+All contributions go through a pull request. Direct pushes and force pushes to
+`main` are blocked for contributors; the repository owner reviews and merges
+accepted changes after the required package and documentation checks pass.
+
 ## Development setup
 
 Requirements are Python 3.11+, Linux, and—only for real benchmark runs—an

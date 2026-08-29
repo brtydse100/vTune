@@ -7,10 +7,12 @@ search space, and reports which configurations performed best.
 
 vTune is alpha software targeting Linux with NVIDIA GPUs and Python 3.11–3.12.
 
-Tested integrations:
+**[Documentation](https://brtydse100.github.io/vTune/)** ·
+**[Quick start](https://brtydse100.github.io/vTune/getting-started/)** ·
+**[PyPI](https://pypi.org/project/vtune/)**
 
-- vLLM 0.10.2 with GuideLLM 0.7.3 on WSL2 and an RTX 3080.
-- vLLM 0.28.0 with GuideLLM 0.7.3 on the same system. WSL2 required
+The current code is verified with vLLM 0.28.0 and GuideLLM 0.7.3 on WSL2
+with an RTX 3080. That host required
   `VLLM_USE_V2_MODEL_RUNNER: "0"` because UVA was unavailable and
   `VLLM_USE_FLASHINFER_SAMPLER: "0"` because the CUDA compiler toolkit was
   not installed. Native Linux systems may not require these settings.
@@ -25,9 +27,13 @@ runtime.
 ## Quick start
 
 Requirements: Linux, an NVIDIA GPU, a local model directory, and working
-`vllm` and `guidellm` commands. Install this checkout with:
+`vllm` and `guidellm` commands.
+
+Install the current code:
 
 ```bash
+git clone https://github.com/brtydse100/vTune.git
+cd vTune
 pip install -e .
 ```
 
@@ -75,8 +81,9 @@ only when the benchmark server must be reachable from another host.
 
 Fixed vLLM flags go directly under `server`; tunable flags use top-level
 `tune`. Fixed and tunable environment variables use `env` and `tune_env`.
-See the [configuration guide](docs/configuration.md) for categorical, boolean,
-integer-range, float-range, list, and environment examples.
+See the [configuration guide](https://brtydse100.github.io/vTune/configuration/)
+for categorical, boolean, integer-range, float-range, list, and environment
+examples.
 
 Terminal output is concise by default. To stream vLLM and GuideLLM logs:
 

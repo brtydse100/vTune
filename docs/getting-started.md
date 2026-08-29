@@ -3,13 +3,29 @@
 You need Linux, an NVIDIA GPU, a local model directory, and working `vllm` and
 `guidellm` commands.
 
-## 1. Install
+## 1. Prepare the tools
+
+Create a Python 3.11 or 3.12 environment on Linux with an NVIDIA GPU, then
+install vLLM and GuideLLM using the versions suitable for that machine. Confirm
+that both commands are available:
 
 ```bash
-pip install vtune
+vllm --help
+guidellm --help
 ```
 
-## 2. Create `experiment.yaml`
+## 2. Install vTune
+
+The simplified configuration below is currently on `main` and will ship in the
+next alpha:
+
+```bash
+git clone https://github.com/brtydse100/vTune.git
+cd vTune
+pip install -e .
+```
+
+## 3. Create `experiment.yaml`
 
 ```yaml
 schema_version: 1
@@ -51,7 +67,7 @@ optimization:
   trials: 2
 ```
 
-## 3. Run
+## 4. Run
 
 ```bash
 vtune --config experiment.yaml

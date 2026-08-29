@@ -45,6 +45,7 @@ nav:
       - MVP specification: MVP_SPEC.md
       - Roadmap: ROADMAP.md
       - Contributing: contributing.md
+      - v0.1.0a2 draft: releases/v0.1.0a2.md
       - Release notes: https://github.com/brtydse100/vTune/blob/main/CHANGELOG.md
 
 markdown_extensions:
