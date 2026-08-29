@@ -1,40 +1,68 @@
-# vTune Architecture
+# vTune architecture
 
 ## Early design sketch
 
-The following sketch captures the original architecture idea: configuration is
-parsed once, managers coordinate the workflow, and focused workers execute the
-vLLM, benchmark, verification, and result operations.
-
 ![Early vTune architecture sketch](assets/architecture-early-sketch.png)
 
-This is preserved as an early concept sketch. It established the project's
-manager-and-worker direction, while the refined diagram makes component
-ownership, the `TrialManager` pipeline, retries, parallel trials, adapters, and
-result flow more explicit.
+The sketch is preserved as the project's original manager-and-worker concept.
+The editable early diagram is [vtune-architecture.drawio](vtune-architecture.drawio).
+Some boxes are aspirations rather than current classes.
 
-## Refined architecture diagram
+## Implemented flow
 
-The current editable diagram is available as
-[vtune-architecture.drawio](vtune-architecture.drawio). It can be opened with
-[diagrams.net](https://app.diagrams.net/) or a compatible Draw.io editor.
+```text
+CLI → YAML loader → Orchestrator → SearchSession
+                         │
+                         └→ TrialManager
+                              ├→ ConfigurationBuilderWorker
+                              ├→ VLLMRunnerWorker
+                              ├→ ReadinessWorker
+                              └→ GuideLLMBenchmarkWorker(s)
+                                      │
+                                      └→ GuideLLM JSON
 
-## Agreed ownership model
+Trial results → RunAccumulator → result.json / CSV / HTML / Optuna SQLite
+```
 
-- The parser and validator produce one typed, resolved configuration.
-- The application builder constructs the selected managers, workers, and
-  external adapters.
-- The main run orchestrator owns the run loop and retry decisions.
-- The search manager suggests configurations and records outcomes.
-- The trial scheduler starts one `TrialManager` in the MVP and may start several
-  concurrently later.
-- Each `TrialManager` owns one trial attempt and coordinates its configuration,
-  vLLM, readiness, benchmark, verification, and result workers.
-- Workers perform focused operations and return `completed`, `failed`, or
-  `interrupted`; they do not decide retry policy.
-- External tools remain behind adapters so implementations can be replaced.
-- The results manager is the single path for persistence, scoring, ranking,
-  comparison, and reporting.
+## Ownership
 
-Every invocation creates a new immutable run. Automatic retry creates another
-attempt inside the active run; manual retry creates a linked validation run.
+- `cli.py` selects one user workflow and converts failures to exit codes.
+- `config/` loads typed configuration and validates runtime policy.
+- `search/` owns Grid, Random, and TPE suggestions. The orchestrator sees only
+  the `SearchSession` protocol.
+- `Orchestrator` owns the sequential run loop, immutable run directory, and
+  incremental run persistence.
+- `TrialManager` owns worker ordering, attempts, reverse cleanup, and transient
+  retry decisions for one trial.
+- Workers own one external action. They communicate through `TrialContext` and
+  return structured statuses instead of controlling the run.
+- `ProcessRunner` launches argument arrays without a shell, creates an owned
+  process group, captures logs, and optionally mirrors DEBUG output.
+- `managers/` scores and persists domain results.
+- `reporting/` converts completed run data into CSV and static HTML.
+- `reproduction/` records, validates, redacts, displays, and exports manifests.
+- `lifecycle/` validates immutable source artifacts and builds manual retries.
+
+## Dependency direction
+
+Domain records do not depend on vLLM, GuideLLM, Optuna, the CLI, or HTML.
+Workers depend on domain boundaries; managers coordinate domain records;
+the orchestrator composes them. External formats are normalized at the edge.
+
+## Extension points
+
+- Add a worker by implementing the small `Worker` protocol in `workers/base.py`.
+- Add a search strategy by implementing `SearchSession` and selecting it in
+  `search/factory.py`.
+- Add a benchmark backend beside `GuideLLMBenchmarkWorker`, keeping its command
+  builder and parser in `benchmarks/`.
+- Add report sections in `reporting/` without changing execution workers.
+- Add orchestration managers only when they own policy shared by multiple
+  workers; do not rename a composed trial worker to a manager solely because it
+  calls other code.
+
+## Current boundary
+
+The MVP intentionally runs one trial at a time. Parallel local instances and
+distributed workers require explicit resource allocation, port ownership, and
+coordinator semantics and remain roadmap work.

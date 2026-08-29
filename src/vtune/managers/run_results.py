@@ -8,6 +8,7 @@ from typing import Mapping
 
 from vtune.domain.trial_report import TrialReport
 from vtune.managers.scoring import TrialScore
+from vtune.reproduction.redaction import redact_environment, redact_values
 
 
 class RunResultsManager:
@@ -57,8 +58,8 @@ class RunResultsManager:
         if ranking:
             best = ranking[0]
             lines.extend((f"Best overall: {best.trial_id} ({best.value:.4f})",
-                          f"Server args: {dict(best.server_args)}",
-                          f"Server env: {dict(best.server_env)}"))
+                          f"Server args: {redact_values(best.server_args)}",
+                          f"Server env: {redact_environment(_strings(best.server_env))}"))
         else:
             lines.append("Best overall: unavailable")
         if baseline:
@@ -78,7 +79,12 @@ class RunResultsManager:
 
 def _document(score: TrialScore) -> dict[str, object]:
     return {"trial_id": score.trial_id, "score": score.value,
-            "server_args": dict(score.server_args), "server_env": dict(score.server_env)}
+            "server_args": redact_values(score.server_args),
+            "server_env": redact_environment(_strings(score.server_env))}
+
+
+def _strings(values: Mapping[str, object]) -> dict[str, str]:
+    return {str(name): str(value) for name, value in values.items()}
 
 
 def _trial_document(

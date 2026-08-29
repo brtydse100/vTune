@@ -10,6 +10,7 @@ from vtune.domain.trial_report import TrialReport
 from vtune.managers.scoring import TrialScore
 from vtune.reporting.context import ReportContext
 from vtune.reporting.dashboard import render_dashboard
+from vtune.reproduction.redaction import redact_environment, redact_values
 
 
 class Reporter:
@@ -24,10 +25,12 @@ class Reporter:
         self._directory.mkdir(parents=True, exist_ok=True)
         csv_path = self._directory / "results.csv"
         html_path = self._directory / "report.html"
-        self._write_csv(csv_path, ranking)
+        safe_ranking = tuple(_redacted(score) for score in ranking)
+        safe_baseline = _redacted(baseline) if baseline else None
+        self._write_csv(csv_path, safe_ranking)
         html_path.write_text(
             render_dashboard(
-                self._directory, metric, trials, ranking, baseline,
+                self._directory, metric, trials, safe_ranking, safe_baseline,
                 context or ReportContext(),
             ),
             encoding="utf-8",
@@ -46,3 +49,9 @@ class Reporter:
                                  "score": item.value,
                                  "server_args": json.dumps(dict(item.server_args), sort_keys=True),
                                  "server_env": json.dumps(dict(item.server_env), sort_keys=True)})
+
+
+def _redacted(score: TrialScore) -> TrialScore:
+    environment = {str(name): str(value) for name, value in score.server_env.items()}
+    return TrialScore(score.trial_id, score.value, redact_values(score.server_args),
+                      redact_environment(environment))

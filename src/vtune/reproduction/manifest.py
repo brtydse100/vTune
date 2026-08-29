@@ -9,7 +9,9 @@ from typing import Mapping
 from vtune.config.models import VTuneConfig
 from vtune.lifecycle.integrity import describe_artifacts
 from vtune.reproduction.models import CommandRecord
-from vtune.reproduction.redaction import redact_environment
+from vtune.reproduction.redaction import (
+    redact_arguments, redact_environment, redact_values,
+)
 from vtune.search.grid import TrialParameters
 from vtune.workers.base import TrialContext
 
@@ -29,8 +31,8 @@ class ManifestWriter:
             "status": status,
             "model_path": config.model.path,
             "parameters": {
-                "fixed_args": dict(config.server.args),
-                "selected_args": dict(parameters.server_args),
+                "fixed_args": redact_values(config.server.args),
+                "selected_args": redact_values(parameters.server_args),
                 "fixed_env": redact_environment(_strings(config.server.env)),
                 "selected_env": redact_environment(_strings(parameters.server_env)),
             },
@@ -59,6 +61,10 @@ def _strings(values: Mapping[str, object]) -> dict[str, str]:
 
 def _command_document(command: CommandRecord) -> dict[str, object]:
     document = command.to_dict()
+    argv = document.get("argv", [])
+    if not isinstance(argv, list) or not all(isinstance(value, str) for value in argv):
+        raise TypeError("command arguments must be strings")
+    document["argv"] = redact_arguments(argv)
     environment = document.get("environment", {})
     if not isinstance(environment, dict):
         raise TypeError("command environment must be a mapping")

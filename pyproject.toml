@@ -8,7 +8,23 @@ version = "0.1.0.dev0"
 description = "Local-first experimentation for vLLM serving configurations"
 readme = "README.md"
 requires-python = ">=3.11"
+license = {file = "LICENSE"}
+keywords = ["vllm", "guidellm", "benchmark", "optimization", "inference"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Typing :: Typed",
+]
 dependencies = ["Optuna>=4.0,<5", "PyYAML>=6.0"]
+
+[project.urls]
+Repository = "https://github.com/brtydse100/vTune"
+Issues = "https://github.com/brtydse100/vTune/issues"
 
 [project.scripts]
 vtune = "vtune.cli:main"

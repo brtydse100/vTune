@@ -23,7 +23,8 @@ def build_process_spec(
     _validate_selected_keys(chosen_args, config.server.tune, "argument")
     _validate_selected_keys(chosen_env, config.server.tune_env, "environment")
 
-    arguments = dict(config.server.args)
+    arguments = {"host": config.execution.get("host", "127.0.0.1"),
+                 **config.server.args}
     arguments.update(chosen_args)
     argv = ["vllm", "serve", config.model.path]
     for name in sorted(arguments):

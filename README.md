@@ -5,6 +5,10 @@ configurations. Users define the parameters and workloads they care about;
 vTune manages the server lifecycle, runs repeatable benchmarks, explores the
 search space, and reports which configurations performed best.
 
+vTune is alpha software targeting Linux with NVIDIA GPUs and Python 3.11–3.12.
+The current WSL playground is tested with vLLM 0.10.2 and GuideLLM 0.7.3;
+other combinations may work but are not yet part of the compatibility matrix.
+
 ## Quick start
 
 Requirements: Linux, an NVIDIA GPU, a local model directory, and working
@@ -33,6 +37,7 @@ benchmark:
     - name: throughput
       profile:
         kind: throughput
+        max_concurrency: 16
       constraints:
         - kind: max_requests
           count: 10
@@ -54,6 +59,8 @@ vtune --config experiment.yaml
 
 The short form is `vtune -c experiment.yaml`. The command validates the file,
 runs the experiment, persists results, and generates its exports and report.
+vTune binds vLLM to `127.0.0.1` by default. Set `server.args.host` explicitly
+only when the benchmark server must be reachable from another host.
 
 Terminal output is concise by default. To stream vLLM and GuideLLM logs:
 
@@ -102,7 +109,10 @@ the declared search space.
 - [Future implementation roadmap](docs/ROADMAP.md)
 - [Architecture overview and early sketch](docs/ARCHITECTURE.md)
 - [Editable Draw.io architecture diagram](docs/vtune-architecture.drawio)
+- [Contributor guide](CONTRIBUTING.md)
 
 The MVP specification defines the first releasable version and its acceptance
 criteria. The roadmap describes capabilities that should be designed for now
 but implemented after the core experiment loop is reliable.
+
+vTune is available under the [MIT License](LICENSE).

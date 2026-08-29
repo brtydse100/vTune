@@ -11,7 +11,8 @@ Future work should preserve these invariants:
 - Raw measurements remain separate from ranking and optimization policy.
 - A trial is one server configuration; a scenario evaluation is one workload
   result within that trial.
-- Reports can be regenerated from persisted data without GPUs or benchmarks.
+- Reports should eventually be regenerable from persisted data without GPUs
+  or benchmarks; the MVP currently creates them only at the end of a run.
 - Benchmark and server integrations use adapters.
 - Local execution remains the simplest default even after distributed support
   exists.
@@ -23,6 +24,13 @@ Future work should preserve these invariants:
 ## Phase 1: Harden the local experiment engine
 
 These features should follow immediately after the first working release.
+
+### Offline report regeneration
+
+- Rebuild CSV and HTML from one completed `result.json` and trial artifacts.
+- Never require a GPU, vLLM, or GuideLLM process.
+- Preserve the original report by default and write a clearly versioned output.
+- Validate artifact schema versions before rendering.
 
 ### Conditional search spaces
 

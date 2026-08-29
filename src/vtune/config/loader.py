@@ -1,6 +1,7 @@
 """Load and validate vTune YAML configuration files."""
 
 from pathlib import Path
+import re
 from typing import Any
 
 import yaml
@@ -26,6 +27,7 @@ _TOP_LEVEL_KEYS = {
     "server",
     *_OPTIONAL_SECTIONS,
 }
+_EXPERIMENT_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
 
 def load_config(path: str | Path) -> VTuneConfig:
@@ -85,8 +87,13 @@ def _build_experiment(raw: dict[str, Any]) -> ExperimentConfig:
     seed = raw.get("seed")
     if seed is not None and (not isinstance(seed, int) or isinstance(seed, bool)):
         raise ConfigValidationError("'experiment.seed' must be an integer")
+    name = _nonempty_string(raw.get("name"), "experiment.name")
+    if not _EXPERIMENT_NAME.fullmatch(name):
+        raise ConfigValidationError(
+            "'experiment.name' must use only letters, numbers, '_' or '-'"
+        )
     return ExperimentConfig(
-        name=_nonempty_string(raw.get("name"), "experiment.name"),
+        name=name,
         output_dir=_nonempty_string(raw.get("output_dir", "runs"), "experiment.output_dir"),
         seed=seed,
     )
