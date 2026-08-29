@@ -1,5 +1,3 @@
-"""Local MVP experiment loop coordinating one vLLM server at a time."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -22,6 +20,7 @@ from vtune.managers.trial import TrialManager
 from vtune.search import TrialParameters, create_search, validate_search
 from vtune.search.fixed_session import FixedSearchSession
 from vtune.reporting import Reporter
+from vtune.reporting.context import ReportContext
 from vtune.reproduction.manifest import ManifestWriter
 from vtune.reproduction.metadata import collect_metadata
 from vtune.workers.base import TrialContext
@@ -113,9 +112,13 @@ class Orchestrator:
                         self._source_run_id, self._sources)
         reports, ranking = tuple(session.reports), session.ranking
         by_benchmark = session.benchmark_rankings
-        Reporter(directory).write(self._metric, reports, ranking, session.baseline)
-        details = results.summary(
-            self._metric, reports, ranking, by_benchmark, session.baseline)
+        report_context = ReportContext(run_id, status, started_at, completed_at,
+            self._source_run_id, self._sources, by_benchmark)
+        Reporter(directory).write(
+            self._metric, reports, ranking, session.baseline, report_context,
+        )
+        details = results.summary(self._metric, reports, ranking, by_benchmark,
+                                  session.baseline)
         summary = f"Run status: {status}\n{details}"
         return RunOutcome(run_id, directory, reports, ranking, summary, status)
 

@@ -720,11 +720,12 @@ vLLM. A separate validation command is never a prerequisite.
 - Warns through `<redacted>` placeholders about values that must be supplied.
 - Never starts a process.
 
-### `vtune reproduce --run RUN --trial ID` (optional)
+### `vtune reproduce --run RUN --trial ID`
 
-- Shows the resolved configuration and safe shell commands.
-- Warns about redacted values that must be supplied.
-- Requires `--execute` before executing anything.
+- Shows stored vLLM and all GuideLLM commands in execution order.
+- Shows model, software, hardware, startup, attempt, benchmark, and repeat context.
+- Warns about redacted values that must be supplied manually.
+- Is display-only and never starts a process.
 
 ### `vtune retry --run RUN --trial ID [--trial ID ...]`
 
@@ -792,13 +793,17 @@ The report must answer:
 - Throughput-versus-latency scatter plot.
 - Trial history plot.
 - Parameter-importance chart when statistically defensible.
+- Observed score-by-value charts for every varied parameter.
 - Failed-trial counts grouped by category.
 - Links to local trial artifacts.
 - Attempt counts and retry failure details.
 
 Parameter importance must be omitted or clearly marked low-confidence when
-there are too few successful trials. The implementation should define and
-document a minimum threshold rather than presenting misleading percentages.
+there are fewer than five successful tuned trials. Estimates with five or more
+trials remain exploratory rather than causal.
+
+Parameter-effect charts are observational. The report must not imply that a
+single flag caused a score change when multiple parameters varied together.
 
 Secondary rankings must state that their winners are the best among evaluated
 trials. Only the primary target guided TPE sampling.

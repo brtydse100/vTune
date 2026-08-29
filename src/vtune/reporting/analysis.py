@@ -34,6 +34,24 @@ def parameter_importance(ranking: tuple[TrialScore, ...]) -> dict[str, float]:
     )} if scale else {}
 
 
+def parameter_effects(
+    ranking: tuple[TrialScore, ...],
+) -> dict[str, tuple[tuple[str, float, int], ...]]:
+    """Group observed scores by each varied argument value."""
+    names = set().union(*(item.server_args.keys() for item in ranking)) if ranking else set()
+    effects = {}
+    for name in sorted(names):
+        groups: dict[str, list[float]] = defaultdict(list)
+        for item in ranking:
+            groups[repr(item.server_args.get(name))].append(item.value)
+        if len(groups) > 1:
+            effects[name] = tuple(
+                (value, fmean(scores), len(scores))
+                for value, scores in sorted(groups.items())
+            )
+    return effects
+
+
 def trial_metric(report: TrialReport, metric: str) -> float | None:
     values = []
     for benchmark in report.benchmarks:

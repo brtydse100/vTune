@@ -12,6 +12,7 @@ from vtune.config.errors import ConfigError
 from vtune.config.loader import load_config
 from vtune.lifecycle import load_retry_plan
 from vtune.orchestrator import Orchestrator
+from vtune.reproduction.display import reproduce_trial
 from vtune.reproduction.export import export_vllm_command
 
 
@@ -19,7 +20,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vtune", description="Experiment with vLLM serving configurations."
     )
-    parser.add_argument("action", nargs="?", choices=("validate", "export", "retry"),
+    parser.add_argument(
+        "action", nargs="?", choices=("validate", "export", "reproduce", "retry"),
                         help="Validate, export a trial, or omit to run.")
     parser.add_argument("--config", "-c")
     parser.add_argument("--run", type=Path)
@@ -35,6 +37,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.run is None or not args.trial or len(args.trial) != 1:
                 raise ValueError("export requires exactly one --run and --trial")
             print(export_vllm_command(args.run, args.trial[0]))
+            return 0
+        if args.action == "reproduce":
+            if args.run is None or not args.trial or len(args.trial) != 1:
+                raise ValueError("reproduce requires exactly one --run and --trial")
+            print(reproduce_trial(args.run, args.trial[0]))
             return 0
         if args.action == "retry":
             if args.run is None or not args.trial:

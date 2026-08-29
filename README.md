@@ -23,6 +23,17 @@ vtune retry --run runs/EXPERIMENT/RUN_ID \
 
 The source run is never modified.
 
+Display every stored vLLM and GuideLLM command for a trial without executing
+anything:
+
+```bash
+vtune reproduce --run runs/EXPERIMENT/RUN_ID --trial trial-0001
+```
+
+Each completed run also contains a self-contained `report.html` decision
+dashboard with the best observed configuration, baseline comparison, score
+history, throughput/latency tradeoff, and observed parameter effects.
+
 ## Product documents
 
 - [First MVP specification](docs/MVP_SPEC.md)
