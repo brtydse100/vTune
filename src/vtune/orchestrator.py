@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -8,7 +7,7 @@ from typing import Mapping
 from vtune.benchmarks.guidellm import configured_repeats, configured_runs
 from vtune.config.models import VTuneConfig
 from vtune.config.runtime import (
-    baseline_enabled, max_attempts, maximize_metric, server_port,
+    baseline_enabled, logging_level, max_attempts, maximize_metric, server_port,
 )
 from vtune.domain.results import WorkerStatus
 from vtune.domain.trial_report import TrialReport
@@ -19,13 +18,13 @@ from vtune.managers.scoring import ScoringManager, TrialScore
 from vtune.managers.trial import TrialManager
 from vtune.search import TrialParameters, create_search, validate_search
 from vtune.search.fixed_session import FixedSearchSession
+from vtune.terminal import TerminalLogger
 from vtune.reporting import Reporter
 from vtune.reporting.context import ReportContext
 from vtune.reproduction.manifest import ManifestWriter
 from vtune.reproduction.metadata import collect_metadata
 from vtune.workers.base import TrialContext
 from vtune.workers.factory import build_trial_workers
-
 
 @dataclass(frozen=True, slots=True)
 class RunOutcome:
@@ -53,6 +52,7 @@ class Orchestrator:
         self._retry_trials = trials
         self._source_run_id = source_run_id
         self._sources = dict(sources or {})
+        self._terminal = TerminalLogger(logging_level(config))
 
     def validate(self) -> None:
         configured_runs(self._config)
@@ -73,11 +73,11 @@ class Orchestrator:
         session = RunAccumulator(names, self._scoring)
         session.persist(results, run_id, self._metric, "running", started_at, None,
                         self._source_run_id, self._sources)
-        print(f"Run: {run_id}\nDirectory: {directory.resolve()}", flush=True)
+        self._terminal.info(f"Run: {run_id}\nDirectory: {directory.resolve()}")
         self._manifest = ManifestWriter(collect_metadata())
         interrupted = False
         if self._retry_trials is None and baseline_enabled(self._config):
-            print("[baseline] starting", flush=True)
+            self._terminal.info("[baseline] starting")
             parameters = TrialParameters("baseline", {}, {})
             report, score, by_benchmark = await self._run_trial(
                 directory, parameters
@@ -86,22 +86,22 @@ class Orchestrator:
             session.persist(results, run_id, self._metric, "running", started_at, None,
                             self._source_run_id, self._sources)
             status = f"score={score.value:.4f}" if score else report.status.value
-            print(f"[baseline] {status}", flush=True)
+            self._terminal.info(f"[baseline] {status}")
             interrupted = report.status is WorkerStatus.INTERRUPTED
         search = (FixedSearchSession(self._retry_trials) if self._retry_trials is not None
                   else create_search(self._config, directory))
         position = 0
         while not interrupted and (parameters := search.suggest()) is not None:
             position += 1
-            print(f"[{position}/{search.total}] {parameters.trial_id}: starting", flush=True)
+            self._terminal.info(f"[{position}/{search.total}] {parameters.trial_id}: starting")
             report, score, scores_by_benchmark = await self._run_trial(directory, parameters)
             session.record(parameters, report, score, scores_by_benchmark)
             if score is not None:
                 search.complete(parameters, score.value)
-                print(f"[{position}/{search.total}] completed score={score.value:.4f}")
+                self._terminal.info(f"[{position}/{search.total}] completed score={score.value:.4f}")
             else:
                 search.fail(parameters, report.status is WorkerStatus.INTERRUPTED)
-                print(f"[{position}/{search.total}] {report.status.value}")
+                self._terminal.warning(f"[{position}/{search.total}] {report.status.value}")
             session.persist(results, run_id, self._metric, "running", started_at, None,
                             self._source_run_id, self._sources)
             if report.status is WorkerStatus.INTERRUPTED:

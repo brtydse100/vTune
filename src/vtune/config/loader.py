@@ -7,6 +7,7 @@ import yaml
 
 from .errors import ConfigFileError, ConfigValidationError, ConfigYAMLError
 from .models import ExperimentConfig, ModelConfig, ServerConfig, VTuneConfig
+from .runtime import logging_level
 
 
 _OPTIONAL_SECTIONS = (
@@ -68,13 +69,15 @@ def _build_config(raw: Any, config_directory: Path) -> VTuneConfig:
         name: dict(_mapping(root.get(name, {}), f"'{name}'"))
         for name in _OPTIONAL_SECTIONS
     }
-    return VTuneConfig(
+    config = VTuneConfig(
         schema_version=1,
         experiment=experiment,
         model=model,
         server=server,
         **optional,
     )
+    logging_level(config)
+    return config
 
 
 def _build_experiment(raw: dict[str, Any]) -> ExperimentConfig:

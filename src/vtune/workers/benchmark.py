@@ -8,6 +8,7 @@ from pathlib import Path
 
 from vtune.benchmarks.guidellm import build_plan, parse_result
 from vtune.config.models import VTuneConfig
+from vtune.config.runtime import logging_level
 from vtune.domain.results import Failure, WorkerResult
 from vtune.reproduction.models import CommandRecord
 from vtune.workers.base import TrialContext
@@ -88,7 +89,9 @@ class GuideLLMBenchmarkWorker:
             await process.stop(self._shutdown_grace)
 
     def _environment(self) -> dict[str, str]:
-        return {key: str(value) for key, value in self._config.server.env.items()}
+        environment = {key: str(value) for key, value in self._config.server.env.items()}
+        environment["GUIDELLM__LOGGING__CONSOLE_LOG_LEVEL"] = logging_level(self._config)
+        return environment
 
     @staticmethod
     def _failed(code: str, message: str) -> WorkerResult[None]:

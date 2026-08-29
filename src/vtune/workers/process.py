@@ -41,9 +41,13 @@ class ProcessSpec:
 class ManagedProcess:
     """A process whose lifetime and log file are owned by vTune."""
 
-    def __init__(self, process: asyncio.subprocess.Process, log: IO[str]) -> None:
+    def __init__(
+        self, process: asyncio.subprocess.Process, log: IO[str],
+        mirror: asyncio.Task[None] | None = None,
+    ) -> None:
         self._process = process
         self._log = log
+        self._mirror = mirror
 
     @property
     def pid(self) -> int:
@@ -55,7 +59,11 @@ class ManagedProcess:
 
     async def wait(self) -> int:
         returncode = await self._process.wait()
-        self._close_log()
+        try:
+            if self._mirror is not None:
+                await self._mirror
+        finally:
+            self._close_log()
         return returncode
 
     async def stop(self, grace_period: float = 5.0) -> int:
@@ -94,6 +102,10 @@ class ManagedProcess:
 class ProcessRunner:
     """Starts subprocesses without a shell in a dedicated process group."""
 
+    def __init__(self, stream: bool = False, label: str = "process") -> None:
+        self._stream = stream
+        self._label = label
+
     async def start(self, spec: ProcessSpec, log_path: Path) -> ManagedProcess:
         log_path = Path(log_path)
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -110,11 +122,26 @@ class ProcessRunner:
                 *spec.argv,
                 cwd=spec.cwd,
                 env=environment,
-                stdout=log,
+                stdout=asyncio.subprocess.PIPE if self._stream else log,
                 stderr=asyncio.subprocess.STDOUT,
+                limit=1024 * 1024,
                 **ownership,
             )
         except BaseException:
             log.close()
             raise
-        return ManagedProcess(process, log)
+        mirror = None
+        if self._stream:
+            assert process.stdout is not None
+            mirror = asyncio.create_task(_mirror_output(process.stdout, log, self._label))
+        return ManagedProcess(process, log, mirror)
+
+
+async def _mirror_output(
+    stream: asyncio.StreamReader, log: IO[str], label: str,
+) -> None:
+    while line := await stream.readline():
+        text = line.decode("utf-8", errors="replace")
+        log.write(text)
+        log.flush()
+        print(f"[{label}] {text}", end="", flush=True)

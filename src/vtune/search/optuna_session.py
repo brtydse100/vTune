@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import json
 from pathlib import Path
 
 import optuna
@@ -10,6 +11,7 @@ from optuna.trial import TrialState
 
 from vtune.config.models import VTuneConfig
 from vtune.search.grid import TrialParameters
+from vtune.search.grid import expand_grid
 
 
 class OptunaSearchSession:
@@ -26,25 +28,35 @@ class OptunaSearchSession:
         self._config = config
         self._total = trials
         self._active: dict[str, optuna.Trial] = {}
+        self._space = expand_grid(config)
         self._recover_running_trials()
+        self._seen = {
+            value for trial in self._study.trials
+            if isinstance((value := trial.user_attrs.get("vtune_configuration")), str)
+        }
 
     @property
     def total(self) -> int:
         return self._total
 
     def suggest(self) -> TrialParameters | None:
-        finished = sum(t.state in (TrialState.COMPLETE, TrialState.FAIL)
-                       for t in self._study.trials)
-        if finished >= self._total:
+        if len(self._seen) >= self._total:
             return None
-        optuna_trial = self._study.ask()
-        arguments = self._suggest_section(optuna_trial, self._config.server.tune, "arg")
-        environment = self._suggest_section(optuna_trial, self._config.server.tune_env, "env")
-        trial = TrialParameters(
-            f"trial-{optuna_trial.number:04d}", arguments, environment
-        )
-        self._active[trial.trial_id] = optuna_trial
-        return trial
+        while True:
+            optuna_trial = self._study.ask()
+            arguments = self._suggest_section(optuna_trial, self._config.server.tune, "arg")
+            environment = self._suggest_section(optuna_trial, self._config.server.tune_env, "env")
+            fingerprint = _fingerprint(arguments, environment)
+            if fingerprint in self._seen:
+                optuna_trial.set_user_attr("vtune_status", "duplicate_skipped")
+                self._study.tell(optuna_trial, state=TrialState.PRUNED)
+                self._enqueue_remaining()
+                continue
+            optuna_trial.set_user_attr("vtune_configuration", fingerprint)
+            trial = TrialParameters(f"trial-{len(self._seen):04d}", arguments, environment)
+            self._seen.add(fingerprint)
+            self._active[trial.trial_id] = optuna_trial
+            return trial
 
     def complete(self, trial: TrialParameters, value: float) -> None:
         self._study.tell(self._active.pop(trial.trial_id), value)
@@ -59,6 +71,20 @@ class OptunaSearchSession:
         for trial in self._study.trials:
             if trial.state is TrialState.RUNNING:
                 self._study.tell(trial.number, state=TrialState.FAIL)
+
+    def _enqueue_remaining(self) -> None:
+        remaining = next(
+            (trial for trial in self._space
+             if _fingerprint(trial.server_args, trial.server_env) not in self._seen),
+            None,
+        )
+        if remaining is None:
+            return
+        parameters = {
+            **{f"arg:{name}": value for name, value in remaining.server_args.items()},
+            **{f"env:{name}": value for name, value in remaining.server_env.items()},
+        }
+        self._study.enqueue_trial(parameters)
 
     @staticmethod
     def _suggest_section(
@@ -87,3 +113,9 @@ def _suggest(
            for value in (low, high, step)):
         return trial.suggest_int(parameter, low, high, step=step)
     return trial.suggest_float(parameter, float(low), float(high), step=float(step))
+
+
+def _fingerprint(
+    arguments: Mapping[str, object], environment: Mapping[str, object],
+) -> str:
+    return json.dumps([arguments, environment], sort_keys=True, default=repr)

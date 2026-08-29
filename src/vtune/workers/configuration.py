@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from vtune.config.models import VTuneConfig
+from vtune.config.runtime import logging_level
 from vtune.domain.results import Failure, WorkerResult
 from vtune.workers.base import TrialContext
 from vtune.workers.process import ProcessSpec
@@ -30,6 +31,7 @@ def build_process_spec(
 
     environment = _string_environment(config.server.env)
     environment.update(_string_environment(chosen_env))
+    environment["VLLM_LOGGING_LEVEL"] = logging_level(config)
     return ProcessSpec(argv=tuple(argv), env=environment)
 
 

@@ -3,6 +3,20 @@
 from vtune.config.models import VTuneConfig
 
 
+LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+
+
+def logging_level(config: VTuneConfig) -> str:
+    unknown = set(config.logging) - {"level"}
+    if unknown:
+        names = ", ".join(sorted(unknown))
+        raise ValueError(f"unknown logging setting(s): {names}")
+    level = config.logging.get("level", "INFO")
+    if not isinstance(level, str) or level.upper() not in LOG_LEVELS:
+        raise ValueError("logging.level must be DEBUG, INFO, WARNING, ERROR, or CRITICAL")
+    return level.upper()
+
+
 def maximize_metric(config: VTuneConfig) -> str:
     metric = config.optimization.get("maximize")
     if not isinstance(metric, str) or not metric.strip():

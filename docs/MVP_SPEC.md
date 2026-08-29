@@ -274,8 +274,7 @@ timeouts:
   benchmark: auto
 
 logging:
-  verbose: false
-  show_latest_server_status: true
+  level: INFO
 
 execution:
   shutdown_grace: 20
@@ -324,7 +323,6 @@ integer_parameter:
   min: 1
   max: 8
   step: 1
-  type: int
 ```
 
 ```yaml
@@ -332,7 +330,6 @@ float_parameter:
   min: 0.80
   max: 0.95
   step: 0.05
-  type: float
 ```
 
 Range endpoints are inclusive when they fall on the generated step sequence.
@@ -371,6 +368,7 @@ their units where ambiguity is possible, for example `ttft_p99_ms`.
 
 - Samples from the declared space using the experiment seed.
 - Runs exactly `optimization.trials` suggestions.
+- Never executes the same resolved configuration twice.
 - Persists suggestions and outcomes in the run's `study.db`.
 
 ### TPE
@@ -378,8 +376,20 @@ their units where ambiguity is possible, for example `ttft_p99_ms`.
 - Uses Optuna's TPE sampler and the experiment seed.
 - Uses Optuna's default startup behavior.
 - Optimizes one scalar target score.
+- Replaces duplicate Optuna suggestions with an untested configuration.
 - Persists completed and failed outcomes in the run's `study.db`.
 - Marks stale Optuna `RUNNING` trials as failed when reopening a study.
+
+For Random and TPE, `optimization.trials` must not exceed the finite number of
+unique configurations in the declared search space.
+
+### Terminal logging
+
+`logging.level` accepts GuideLLM's level names: `DEBUG`, `INFO`, `WARNING`,
+`ERROR`, and `CRITICAL`. The default is `INFO`. At `DEBUG`, vTune mirrors raw
+vLLM and GuideLLM output to the terminal while continuing to preserve the same
+output in per-trial log files. `--verbose` overrides the YAML level with
+`DEBUG` for one invocation. Log files are always written at every level.
 
 TPE optimizes only `optimization.maximize`. Secondary rankings must be labeled
 as the best configurations *among evaluated trials*, not as independently
