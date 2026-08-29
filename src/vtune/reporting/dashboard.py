@@ -13,7 +13,7 @@ from vtune.reporting.charts import (
 )
 from vtune.reporting.context import ReportContext
 from vtune.reporting.tables import (
-    benchmark_table, changes_table, failures, ranking_table, sources_and_artifacts,
+    benchmark_table, changes_table, failures, ranking_table,
 )
 from vtune.reproduction.export import export_vllm_command
 
@@ -60,9 +60,8 @@ def render_dashboard(
 <p class='note'>Bars show mean score by tested value; <code>n</code> is the number of observations.</p>
 {effect_charts(ranking)}</section>
 <section><h2>Best by benchmark</h2>{benchmark_table(context)}</section>
-<section><h2>Top configurations</h2>{ranking_table(ranking)}</section>
+<section><h2>Top configurations</h2>{ranking_table(ranking, baseline)}</section>
 <section><h2>Failures and interruptions</h2>{failures(trials)}</section>
-<section><h2>Sources and local artifacts</h2>{sources_and_artifacts(trials, context)}</section>
 </main><footer>Generated from local vTune run artifacts. No external services required.</footer></body></html>"""
 
 

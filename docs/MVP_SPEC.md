@@ -66,6 +66,8 @@ new vLLM options can be tested without a vTune release.
 - Concise terminal progress and complete per-trial logs.
 - CSV and JSON export.
 - A small static HTML report.
+- Top-configuration tables show each distinct tested configuration once and
+  display only settings changed from the baseline.
 - Exact trial manifests and reproduction commands.
 
 ### Explicitly excluded from the first MVP

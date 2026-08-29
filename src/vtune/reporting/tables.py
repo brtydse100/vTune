@@ -5,20 +5,22 @@ from __future__ import annotations
 from collections import Counter
 from html import escape
 import json
-from typing import Mapping
 
 from vtune.domain.trial_report import TrialReport
 from vtune.managers.scoring import TrialScore
 from vtune.reporting.context import ReportContext
 
 
-def ranking_table(ranking: tuple[TrialScore, ...]) -> str:
+def ranking_table(
+    ranking: tuple[TrialScore, ...], baseline: TrialScore | None,
+) -> str:
+    unique = _unique_changed(ranking, baseline)
     rows = "".join(
         f"<tr><td>{index}</td><td>{escape(item.trial_id)}</td><td>{item.value:.4f}</td>"
-        f"<td><code>{escape(json.dumps(dict(item.server_args), sort_keys=True))}</code></td></tr>"
-        for index, item in enumerate(ranking, start=1)
+        f"<td><code>{escape(json.dumps(changes, sort_keys=True))}</code></td></tr>"
+        for index, (item, changes) in enumerate(unique, start=1)
     )
-    return _table(("Rank", "Trial", "Score", "Arguments"), rows)
+    return _table(("Rank", "Trial", "Score", "Changed settings"), rows)
 
 
 def benchmark_table(context: ReportContext) -> str:
@@ -64,27 +66,23 @@ def failures(trials: tuple[TrialReport, ...]) -> str:
     return chart + _table(("Trial", "Status", "Category", "Details", "Attempts"), rows)
 
 
-def sources_and_artifacts(
-    trials: tuple[TrialReport, ...], context: ReportContext,
-) -> str:
-    rows = []
-    for report in trials:
-        source = context.sources.get(report.trial_id)
-        source_text = _source_link(source) if source else "original"
-        paths = "<br>".join(
-            f"<code>{escape(name)}: {escape(str(path))}</code>"
-            for name, path in sorted(report.artifacts.items())
-        )
-        rows.append(f"<tr><td>{escape(report.trial_id)}</td>"
-                    f"<td>{source_text}</td><td>{paths}</td></tr>")
-    return _table(("Trial", "Source", "Local artifacts"), "".join(rows))
-
-
-def _source_link(source: Mapping[str, str]) -> str:
-    run_id, trial_id = str(source.get("run_id", "")), str(source.get("trial_id", ""))
-    label = escape(f"{run_id} / {trial_id}")
-    href = escape(f"../{run_id}/trials/{trial_id}/manifest.json", quote=True)
-    return f"<a href='{href}'>{label}</a>"
+def _unique_changed(
+    ranking: tuple[TrialScore, ...], baseline: TrialScore | None,
+) -> list[tuple[TrialScore, dict[str, object]]]:
+    base_args = dict(baseline.server_args) if baseline else {}
+    base_env = dict(baseline.server_env) if baseline else {}
+    unique: list[tuple[TrialScore, dict[str, object]]] = []
+    seen: set[str] = set()
+    for item in ranking:
+        changes = {name: value for name, value in item.server_args.items()
+                   if base_args.get(name) != value}
+        changes.update({f"env.{name}": value for name, value in item.server_env.items()
+                        if base_env.get(name) != value})
+        fingerprint = json.dumps(changes, sort_keys=True, default=repr)
+        if fingerprint not in seen:
+            seen.add(fingerprint)
+            unique.append((item, changes))
+    return unique
 
 
 def _table(headers: tuple[str, ...], rows: str) -> str:
