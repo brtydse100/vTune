@@ -17,7 +17,7 @@ declared metric is always maximized. If the experiment contains multiple
 benchmark runs, vTune combines their normalized metric values into the trial
 score while retaining per-run metrics in the artifacts.
 
-The untuned `server.args` configuration runs first as the baseline. The report
+The fixed `server` configuration runs first as the baseline. The report
 shows the best observed configuration and its difference from that baseline.
 
 TPE state is persisted in the run's SQLite study. Runs themselves remain

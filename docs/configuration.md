@@ -5,29 +5,91 @@ configuration can be compared under the same demand.
 
 ## Model and server
 
-`model.path` must point to an existing local model directory. Fixed values in
-`server.args` are passed to every vLLM process. Values in `server.tune` define
-the search space.
+`server.model` is required and must point to an existing local model directory.
+Every other `server` entry is a fixed vLLM argument. Top-level `tune` defines
+the vLLM argument search space.
 
 ```yaml
-model:
-  path: /models/qwen
 server:
-  args:
-    tensor-parallel-size: 2
-  tune:
-    max-num-seqs:
-      values: [64, 128, 256]
-    gpu-memory-utilization:
-      min: 0.85
-      max: 0.95
-      step: 0.05
-  env:
-    CUDA_VISIBLE_DEVICES: "0,1"
+  model: /models/qwen
+  tensor-parallel-size: 2
+  enforce-eager: true
+tune:
+  max-num-seqs:
+    values: [64, 128, 256]
+  gpu-memory-utilization:
+    min: 0.85
+    max: 0.95
+    step: 0.05
+env:
+  CUDA_VISIBLE_DEVICES: "0,1"
 ```
 
 Unknown vLLM flags are intentionally allowed. vTune renders keys as CLI flags,
 which keeps new vLLM options usable without a vTune release.
+
+### Fixed value rendering
+
+Fixed `server` values map directly to vLLM flags:
+
+```yaml
+server:
+  model: /models/qwen
+  enforce-eager: true       # emits --enforce-eager
+  disable-log-requests: false  # omitted
+  lora-modules: [a=/a, b=/b]   # repeats --lora-modules
+```
+
+`null` and `false` omit a flag. `true` emits a presence flag. Scalars emit a
+flag/value pair, and lists repeat the flag once for each item.
+
+### Tunable vLLM arguments
+
+Categorical values can contain strings, numbers, or booleans:
+
+```yaml
+tune:
+  attention-backend:
+    values: [FLASH_ATTN, FLASHINFER]
+  max-num-seqs:
+    values: [64, 128, 256]
+  enforce-eager:
+    values: [true, false]
+```
+
+Integer and float ranges are inclusive when the step reaches the maximum:
+
+```yaml
+tune:
+  max-num-batched-tokens:
+    min: 4096
+    max: 16384
+    step: 4096
+  gpu-memory-utilization:
+    min: 0.85
+    max: 0.95
+    step: 0.05
+```
+
+### Environment variables
+
+Fixed environment values belong in `env`; tunable ones use `tune_env`:
+
+```yaml
+env:
+  CUDA_VISIBLE_DEVICES: "0,1"
+  VLLM_LOG_STATS_INTERVAL: 5
+tune_env:
+  VLLM_USE_FLASHINFER_SAMPLER:
+    values: ["0", "1"]
+  WORKER_COUNT:
+    min: 1
+    max: 4
+    step: 1
+```
+
+Environment values are converted to strings before process launch. Quoting
+values such as `"0"` and `"1"` avoids YAML treating them as numbers.
 
 ## Benchmark runs
 

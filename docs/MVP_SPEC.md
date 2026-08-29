@@ -77,25 +77,25 @@ experiment:
   output_dir: runs
   seed: 42
 
-model:
-  path: /models/Qwen3-32B
-
 server:
-  args:
-    tensor-parallel-size: 4
-    dtype: bfloat16
-  tune:
-    max-num-seqs:
-      values: [64, 128, 256]
-    gpu-memory-utilization:
-      min: 0.85
-      max: 0.95
-      step: 0.05
-  env:
-    CUDA_VISIBLE_DEVICES: "0,1,2,3"
-  tune_env:
-    VLLM_USE_V1:
-      values: ["0", "1"]
+  model: /models/Qwen3-32B
+  tensor-parallel-size: 4
+  dtype: bfloat16
+
+tune:
+  max-num-seqs:
+    values: [64, 128, 256]
+  gpu-memory-utilization:
+    min: 0.85
+    max: 0.95
+    step: 0.05
+
+env:
+  CUDA_VISIBLE_DEVICES: "0,1,2,3"
+
+tune_env:
+  VLLM_USE_V1:
+    values: ["0", "1"]
 
 benchmark:
   repeats: 3
@@ -138,17 +138,17 @@ logging:
 
 ### Required sections
 
-`schema_version`, `experiment`, `model`, and `server` are required. A runnable
+`schema_version`, `experiment`, and `server` are required. A runnable
 experiment also requires at least one `benchmark.runs` entry and a non-empty
 `optimization.maximize` metric.
 
-`model.path` must be an existing local directory. Relative paths are resolved
+`server.model` must be an existing local directory. Relative paths are resolved
 from the YAML file. vTune never downloads a model.
 
 ### Server values
 
-Entries under `server.args` and `server.env` are fixed. Entries under
-`server.tune` and `server.tune_env` accept either:
+Entries under `server` other than `model` are fixed vLLM arguments. Top-level
+`tune` and `tune_env` accept either:
 
 ```yaml
 values: [a, b, c]
@@ -165,7 +165,8 @@ step: 1
 vLLM flags are rendered deterministically. `true` emits a presence flag;
 `false` and `null` omit it; a fixed list repeats the flag for each item. All
 processes are launched with argument arrays, never interpolated shell text.
-Unless `server.args.host` is set explicitly, vTune supplies
+Fixed environment variables use top-level `env`. Unless `server.host` is set
+explicitly, vTune supplies
 `--host 127.0.0.1`. `execution.host` selects the address used for health checks
 and defaults to the same loopback address.
 

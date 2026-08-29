@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from vtune.config.models import VTuneConfig
-from vtune.config.runtime import logging_level
+from vtune.config.runtime import logging_level, model_path
 from vtune.domain.results import Failure, WorkerResult
 from vtune.workers.base import TrialContext
 from vtune.workers.process import ProcessSpec
@@ -20,17 +20,18 @@ def build_process_spec(
     """Resolve fixed and selected values into a shell-free process spec."""
     chosen_args = dict(selected_args or {})
     chosen_env = dict(selected_env or {})
-    _validate_selected_keys(chosen_args, config.server.tune, "argument")
-    _validate_selected_keys(chosen_env, config.server.tune_env, "environment")
+    _validate_selected_keys(chosen_args, config.tune, "argument")
+    _validate_selected_keys(chosen_env, config.tune_env, "environment")
 
     arguments = {"host": config.execution.get("host", "127.0.0.1"),
-                 **config.server.args}
+                 **{name: value for name, value in config.server.items()
+                    if name != "model"}}
     arguments.update(chosen_args)
-    argv = ["vllm", "serve", config.model.path]
+    argv = ["vllm", "serve", model_path(config)]
     for name in sorted(arguments):
         argv.extend(_render_argument(name, arguments[name]))
 
-    environment = _string_environment(config.server.env)
+    environment = _string_environment(config.env)
     environment.update(_string_environment(chosen_env))
     environment["VLLM_LOGGING_LEVEL"] = logging_level(config)
     return ProcessSpec(argv=tuple(argv), env=environment)

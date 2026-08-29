@@ -8,6 +8,13 @@
   Regeneration never starts vLLM or GuideLLM and never overwrites an existing
   destination.
 
+### Configuration
+
+- Simplified YAML to place fixed vLLM arguments directly under `server`, with
+  the required local model at `server.model`. Tunable arguments, fixed
+  environment variables, and tunable environment variables now use top-level
+  `tune`, `env`, and `tune_env` sections.
+
 ## v0.1.0a1 — Local vLLM tuning, reproducible trials, and decision reports
 
 _August 30, 2026_

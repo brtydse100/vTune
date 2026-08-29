@@ -89,7 +89,7 @@ class GuideLLMBenchmarkWorker:
             await process.stop(self._shutdown_grace)
 
     def _environment(self) -> dict[str, str]:
-        environment = {key: str(value) for key, value in self._config.server.env.items()}
+        environment = {key: str(value) for key, value in self._config.env.items()}
         environment["GUIDELLM__LOGGING__CONSOLE_LOG_LEVEL"] = logging_level(self._config)
         return environment
 

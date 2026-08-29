@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Mapping
 
 from vtune.config.models import VTuneConfig
+from vtune.config.runtime import model_path
 from vtune.lifecycle.integrity import describe_artifacts
 from vtune.reproduction.models import CommandRecord
 from vtune.reproduction.redaction import (
@@ -29,11 +30,14 @@ class ManifestWriter:
             "schema_version": 1,
             "trial_id": context.trial_id,
             "status": status,
-            "model_path": config.model.path,
+            "model_path": model_path(config),
             "parameters": {
-                "fixed_args": redact_values(config.server.args),
+                "fixed_args": redact_values({
+                    name: value for name, value in config.server.items()
+                    if name != "model"
+                }),
                 "selected_args": redact_values(parameters.server_args),
-                "fixed_env": redact_environment(_strings(config.server.env)),
+                "fixed_env": redact_environment(_strings(config.env)),
                 "selected_env": redact_environment(_strings(parameters.server_env)),
             },
             "benchmark": dict(config.benchmark),

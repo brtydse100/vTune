@@ -19,10 +19,10 @@ class TrialParameters:
 
 def expand_grid(config: VTuneConfig) -> tuple[TrialParameters, ...]:
     options = [
-        *(("arg", key, _values(value, f"server.tune.{key}"))
-          for key, value in sorted(config.server.tune.items())),
-        *(("env", key, _values(value, f"server.tune_env.{key}"))
-          for key, value in sorted(config.server.tune_env.items())),
+        *(("arg", key, _values(value, f"tune.{key}"))
+          for key, value in sorted(config.tune.items())),
+        *(("env", key, _values(value, f"tune_env.{key}"))
+          for key, value in sorted(config.tune_env.items())),
     ]
     combinations = product(*(entry[2] for entry in options)) if options else [()]
     trials = []

@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 from typing import Mapping
 
-from vtune.config.models import ExperimentConfig, ModelConfig, ServerConfig, VTuneConfig
+from vtune.config.models import ExperimentConfig, VTuneConfig
 from vtune.lifecycle.integrity import load_retry_source
 from vtune.reproduction.redaction import REDACTED
 from vtune.search.grid import TrialParameters
@@ -43,8 +43,7 @@ def load_retry_plan(run: Path, trial_ids: list[str]) -> RetryPlan:
         raise ValueError(f"source model path is not a directory: {model_path}")
     config = VTuneConfig(
         1, ExperimentConfig(source.parent.name, str(source.parent.parent)),
-        ModelConfig(str(model_path)),
-        ServerConfig(fixed_args, tune, fixed_env, tune_env),
+        {"model": str(model_path), **fixed_args}, tune, fixed_env, tune_env,
         benchmark=_mapping(benchmark, "benchmark"), baseline={"enabled": False},
         optimization={"maximize": _text(result.get("maximize"), "maximize")},
         timeouts=_policy(manifests[0], "timeouts"),

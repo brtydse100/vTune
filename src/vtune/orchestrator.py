@@ -145,6 +145,7 @@ class Orchestrator:
         by_benchmark = self._scoring.score_each(results)
         if value is None or outcome.failure is not None:
             return report, None, {}
-        args = {**self._config.server.args, **parameters.server_args}
-        env = {**self._config.server.env, **parameters.server_env}
+        args = {**{name: value for name, value in self._config.server.items()
+                   if name != "model"}, **parameters.server_args}
+        env = {**self._config.env, **parameters.server_env}
         return report, TrialScore(parameters.trial_id, value, args, env), by_benchmark

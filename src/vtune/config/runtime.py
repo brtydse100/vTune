@@ -6,6 +6,13 @@ from vtune.config.models import VTuneConfig
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
 
+def model_path(config: VTuneConfig) -> str:
+    value = config.server.get("model")
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("server.model must be a non-empty local model path")
+    return value
+
+
 def logging_level(config: VTuneConfig) -> str:
     unknown = set(config.logging) - {"level"}
     if unknown:
@@ -32,9 +39,9 @@ def positive(values: object, key: str, default: float) -> float:
 
 
 def server_port(config: VTuneConfig) -> int:
-    value = config.server.args.get("port", 8000)
+    value = config.server.get("port", 8000)
     if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 65535:
-        raise ValueError("server.args.port must be a valid integer port")
+        raise ValueError("server.port must be a valid integer port")
     return value
 
 

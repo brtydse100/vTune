@@ -37,14 +37,12 @@ Create `experiment.yaml`:
 schema_version: 1
 experiment:
   name: first-run
-model:
-  path: /models/opt-125m
 server:
-  args:
-    gpu-memory-utilization: 0.8
-  tune:
-    max-num-seqs:
-      values: [8, 16]
+  model: /models/opt-125m
+  gpu-memory-utilization: 0.8
+tune:
+  max-num-seqs:
+    values: [8, 16]
 benchmark:
   runs:
     - name: throughput
@@ -72,8 +70,13 @@ vtune --config experiment.yaml
 
 The short form is `vtune -c experiment.yaml`. The command validates the file,
 runs the experiment, persists results, and generates its exports and report.
-vTune binds vLLM to `127.0.0.1` by default. Set `server.args.host` explicitly
+vTune binds vLLM to `127.0.0.1` by default. Set `server.host` explicitly
 only when the benchmark server must be reachable from another host.
+
+Fixed vLLM flags go directly under `server`; tunable flags use top-level
+`tune`. Fixed and tunable environment variables use `env` and `tune_env`.
+See the [configuration guide](docs/configuration.md) for categorical, boolean,
+integer-range, float-range, list, and environment examples.
 
 Terminal output is concise by default. To stream vLLM and GuideLLM logs:
 

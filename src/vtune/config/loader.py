@@ -7,7 +7,7 @@ from typing import Any
 import yaml
 
 from .errors import ConfigFileError, ConfigValidationError, ConfigYAMLError
-from .models import ExperimentConfig, ModelConfig, ServerConfig, VTuneConfig
+from .models import ExperimentConfig, VTuneConfig
 from .runtime import logging_level
 
 
@@ -23,8 +23,10 @@ _OPTIONAL_SECTIONS = (
 _TOP_LEVEL_KEYS = {
     "schema_version",
     "experiment",
-    "model",
     "server",
+    "tune",
+    "env",
+    "tune_env",
     *_OPTIONAL_SECTIONS,
 }
 _EXPERIMENT_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
@@ -65,8 +67,12 @@ def _build_config(raw: Any, config_directory: Path) -> VTuneConfig:
         raise ConfigValidationError("'schema_version' must be 1")
 
     experiment = _build_experiment(_required_mapping(root, "experiment"))
-    model = _build_model(_required_mapping(root, "model"), config_directory)
-    server = _build_server(_required_mapping(root, "server"))
+    server = _build_server(_required_mapping(root, "server"), config_directory)
+    tune = dict(_mapping(root.get("tune", {}), "'tune'"))
+    env = dict(_mapping(root.get("env", {}), "'env'"))
+    tune_env = dict(_mapping(root.get("tune_env", {}), "'tune_env'"))
+    if "model" in tune:
+        raise ConfigValidationError("'server.model' cannot be tuned")
     optional = {
         name: dict(_mapping(root.get(name, {}), f"'{name}'"))
         for name in _OPTIONAL_SECTIONS
@@ -74,8 +80,10 @@ def _build_config(raw: Any, config_directory: Path) -> VTuneConfig:
     config = VTuneConfig(
         schema_version=1,
         experiment=experiment,
-        model=model,
         server=server,
+        tune=tune,
+        env=env,
+        tune_env=tune_env,
         **optional,
     )
     logging_level(config)
@@ -99,24 +107,13 @@ def _build_experiment(raw: dict[str, Any]) -> ExperimentConfig:
     )
 
 
-def _build_model(raw: dict[str, Any], config_directory: Path) -> ModelConfig:
-    _reject_unknown(raw, {"path"}, "model")
-    configured = Path(_nonempty_string(raw.get("path"), "model.path")).expanduser()
+def _build_server(raw: dict[str, Any], config_directory: Path) -> dict[str, Any]:
+    configured = Path(_nonempty_string(raw.get("model"), "server.model")).expanduser()
     resolved = configured if configured.is_absolute() else config_directory / configured
     resolved = resolved.resolve()
     if not resolved.is_dir():
-        raise ConfigValidationError(f"'model.path' is not a directory: {resolved}")
-    return ModelConfig(path=str(resolved))
-
-
-def _build_server(raw: dict[str, Any]) -> ServerConfig:
-    fields = {"args", "tune", "env", "tune_env"}
-    _reject_unknown(raw, fields, "server")
-    mappings = {
-        name: dict(_mapping(raw.get(name, {}), f"'server.{name}'"))
-        for name in ("args", "tune", "env", "tune_env")
-    }
-    return ServerConfig(**mappings)
+        raise ConfigValidationError(f"'server.model' is not a directory: {resolved}")
+    return {**raw, "model": str(resolved)}
 
 
 def _required_mapping(root: dict[str, Any], name: str) -> dict[str, Any]:

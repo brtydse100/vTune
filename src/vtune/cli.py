@@ -10,6 +10,7 @@ import sys
 
 from vtune.config.errors import ConfigError
 from vtune.config.loader import load_config
+from vtune.config.runtime import model_path
 from vtune.cli_options import CLIUsageError, validate_cli_options
 from vtune.lifecycle import load_retry_plan
 from vtune.orchestrator import Orchestrator
@@ -67,7 +68,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.action == "validate":
                 Orchestrator(config).validate()
                 print(f"Configuration valid: {config.experiment.name}")
-                print(f"Model: {config.model.path}")
+                print(f"Model: {model_path(config)}")
                 return 0
             outcome = asyncio.run(Orchestrator(config).run())
     except CLIUsageError as error:

@@ -15,24 +15,13 @@ class ExperimentConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class ModelConfig:
-    path: str
-
-
-@dataclass(frozen=True, slots=True)
-class ServerConfig:
-    args: ConfigMapping = field(default_factory=dict)
-    tune: ConfigMapping = field(default_factory=dict)
-    env: ConfigMapping = field(default_factory=dict)
-    tune_env: ConfigMapping = field(default_factory=dict)
-
-
-@dataclass(frozen=True, slots=True)
 class VTuneConfig:
     schema_version: int
     experiment: ExperimentConfig
-    model: ModelConfig
-    server: ServerConfig
+    server: ConfigMapping
+    tune: ConfigMapping = field(default_factory=dict)
+    env: ConfigMapping = field(default_factory=dict)
+    tune_env: ConfigMapping = field(default_factory=dict)
     benchmark: ConfigMapping = field(default_factory=dict)
     baseline: ConfigMapping = field(default_factory=dict)
     optimization: ConfigMapping = field(default_factory=dict)

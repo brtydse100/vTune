@@ -44,8 +44,8 @@ class OptunaSearchSession:
             return None
         while True:
             optuna_trial = self._study.ask()
-            arguments = self._suggest_section(optuna_trial, self._config.server.tune, "arg")
-            environment = self._suggest_section(optuna_trial, self._config.server.tune_env, "env")
+            arguments = self._suggest_section(optuna_trial, self._config.tune, "arg")
+            environment = self._suggest_section(optuna_trial, self._config.tune_env, "env")
             fingerprint = _fingerprint(arguments, environment)
             if fingerprint in self._seen:
                 optuna_trial.set_user_attr("vtune_status", "duplicate_skipped")

@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 
 from vtune.config.models import VTuneConfig
+from vtune.config.runtime import model_path
 from vtune.domain.benchmark import BenchmarkResult, WorkloadResult
 from vtune.benchmarks.timing import normalize_durations
 
@@ -73,7 +74,7 @@ def build_plan(
     argv = [
         "guidellm", "run", "--backend",
         _serialize({"kind": "openai_http", "target": endpoint,
-                    "model": config.model.path, "request_format": request_format}),
+                    "model": model_path(config), "request_format": request_format}),
         "--profile", _serialize(_mapping(run.get("profile"), "profile")),
     ]
     for option, label in (("constraints", "constraint"), ("data", "data")):
