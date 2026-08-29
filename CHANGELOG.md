@@ -1,81 +1,81 @@
-# Changelog
+# Release notes
 
-## 0.1.0a1 — 2026-08-30
+## v0.1.0a1 — Local vLLM tuning, reproducible trials, and decision reports
 
-First public alpha release. The entries below preserve the project history in
-commit order.
+_August 30, 2026_
 
-### `c2f4046` — Architecture and MVP definition
+vTune's first public alpha turns a small YAML file into a complete local vLLM
+optimization run. It owns server startup and shutdown, benchmarks each unique
+configuration, preserves reproducibility data, and produces a report focused
+on the settings that actually changed.
 
-- Established the project rules, architecture, MVP specification, roadmap,
-  early architecture sketch, and editable Draw.io diagram.
+### Highlights
 
-### `780758d` — Configuration and worker lifecycle
+- Local-first baseline, Grid, Random, and Optuna TPE experiments.
+- GuideLLM workloads with vLLM lifecycle and readiness management.
+- Immutable runs, linked retries, failure isolation, and duplicate prevention.
+- CSV, JSON, and self-contained HTML results with parameter-effect views.
+- Exact, secret-redacted commands and environment metadata for reproduction.
 
-- Added typed YAML loading, validation, CLI entry point, process ownership,
-  readiness polling, vLLM workers, trial management, and package metadata.
+### What's changed
 
-### `d1f71c9` — Benchmarks, scoring, and orchestration
+#### Experiment engine
 
-- Added GuideLLM command generation and JSON normalization, grid search,
-  scoring, result persistence, run summaries, and the main orchestrator.
+- Added typed YAML configuration, arbitrary vLLM flags and environment values,
+  readiness polling, process ownership, and trial management (`780758d`).
+- Added GuideLLM execution, normalized metrics, scoring, orchestration, baseline
+  trials, retries, intelligent timeouts, and failure classification
+  (`d1f71c9`, `a15d76b`).
+- Made the local model path the single model source (`537a9be`).
 
-### `a15d76b` — Baselines, retries, and reporting
+#### Search and lifecycle
 
-- Added baseline trials, transient retry attempts, automatic benchmark
-  timeouts, failure classification, CSV export, and the first static report.
+- Added persistent Grid, Random, and TPE sessions with deterministic seeds and
+  Optuna SQLite storage (`e65a4b1`).
+- Added immutable run IDs, interruption handling, linked multi-trial retries,
+  worker factories, and integrity checks (`049934d`, `e03996c`).
+- Prevented Random and TPE from executing duplicate resolved configurations
+  (`c2f77bf`).
 
-### `537a9be` — Local model paths
+#### Reproduction and reports
 
-- Required an existing local model directory and removed redundant model and
-  executable configuration from benchmark settings.
+- Stored exact commands, selected environment values, software and GPU details,
+  timing, checksums, logs, and exit state for each trial (`e768c03`).
+- Added a decision dashboard with baseline comparison, score history,
+  throughput/latency tradeoffs, and observed parameter effects (`fe8f5bd`).
+- Reduced top-configuration tables to distinct settings that changed
+  (`40545bc`).
 
-### `e65a4b1` — Persistent search strategies
+#### Safety and contributor experience
 
-- Added Grid, Random, and TPE sessions with deterministic seeds and Optuna
-  SQLite persistence.
+- Added GuideLLM-compatible log levels and optional live verbose output
+  (`c2f77bf`).
+- Added loopback-only defaults, safe experiment names, persistent secret
+  redaction, packaging metadata, MIT licensing, and contributor docs
+  (`30bbfaa`, `c2f4046`).
 
-### `e768c03` — Reproducibility manifests
+### Validation
 
-- Stored commands, environment selections, software and GPU metadata, startup
-  timing, logs, checksums, and safe command exports for every trial.
+- All 106 private tests passed.
+- A real baseline plus two-trial TPE run completed with vLLM `0.28.0` and
+  GuideLLM `0.7.3`; its three trials completed and artifacts were inspected.
+  This was a small compatibility workload, not a general performance claim.
+- The exact universal wheel passed installation, dependency, import, and CLI
+  checks on Ubuntu 24.04/Python 3.12 and Windows/Python 3.12.
+- Package metadata, archive contents, and dependency security checks passed.
 
-### `049934d` — Immutable experiment lifecycle
+### Install
 
-- Added immutable run directories, run IDs, interruption handling, linked
-  retry runs, fixed-configuration retries, and worker factories.
+```bash
+pip install vtune==0.1.0a1
+```
 
-### `e03996c` — Run visibility and integrity
+The `py3-none-any` wheel installs on Linux, Windows, and macOS because vTune is
+pure Python. Running vLLM experiments remains Linux-only; Windows supports
+configuration and stored-result inspection, not native vLLM execution.
 
-- Made `result.json` available throughout execution and added artifact,
-  manifest, source-trial, and retry integrity checks.
+See the [quick start](README.md#quick-start) and
+[compatibility notes](https://brtydse100.github.io/vTune/compatibility/)
+before the first GPU run.
 
-### `fe8f5bd` — Decision dashboard and reproduction display
-
-- Added the HTML decision dashboard, score and latency charts, parameter
-  effects, top-configuration tables, and display-only reproduction details.
-
-### `40545bc` — Report cleanup
-
-- Removed low-value artifact details and made top-configuration tables show
-  only changed, distinct settings.
-
-### `c2f77bf` — Duplicate-free search and logging
-
-- Prevented repeated Random and TPE configurations, added GuideLLM-compatible
-  logging levels, verbose terminal streaming, and concise CLI documentation.
-
-### `30bbfaa` — MVP release preparation
-
-- Synchronized documentation with implementation, added contributor guidance,
-  MIT licensing, package metadata and typing marker, loopback binding, safe
-  experiment names, and secret redaction across persistent and visible output.
-
-### Release validation
-
-- Verified 106 private tests and a clean wheel installation.
-- Verified baseline plus TPE tuning using vLLM 0.10.2 and GuideLLM 0.7.3.
-- Verified a real GPU trial using vLLM 0.28.0 and GuideLLM 0.7.3.
-- Verified the universal wheel in an isolated minimal Linux environment.
-- Verified wheel installation, dependency consistency, and CLI startup on
-  Windows with Python 3.12.
+**Full changelog:** `c2f4046...47a5d1a`
