@@ -12,12 +12,13 @@ from vtune.config.models import VTuneConfig
 from vtune.config.runtime import (
     baseline_enabled, max_attempts, maximize_metric, positive, server_port,
 )
+from vtune.domain.results import WorkerStatus
 from vtune.domain.trial_report import TrialReport
 from vtune.managers.results import ResultsManager
 from vtune.managers.run_results import RunResultsManager
 from vtune.managers.scoring import ScoringManager, TrialScore
 from vtune.managers.trial import TrialManager
-from vtune.search.grid import TrialParameters, expand_grid
+from vtune.search import TrialParameters, create_search, validate_search
 from vtune.reporting import Reporter
 from vtune.workers.base import TrialContext, Worker
 from vtune.workers.benchmark import GuideLLMBenchmarkWorker
@@ -40,12 +41,13 @@ class Orchestrator:
     def __init__(self, config: VTuneConfig) -> None:
         self._config = config
         self._metric = maximize_metric(config)
+        validate_search(config)
         self._scoring = ScoringManager(self._metric)
 
     def validate(self) -> None:
         configured_runs(self._config)
         configured_repeats(self._config)
-        expand_grid(self._config)
+        validate_search(self._config)
         server_port(self._config)
         baseline_enabled(self._config)
 
@@ -53,6 +55,7 @@ class Orchestrator:
         self.validate()
         run_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
         directory = Path(self._config.experiment.output_dir) / self._config.experiment.name / run_id
+        directory.mkdir(parents=True, exist_ok=True)
         reports: list[TrialReport] = []
         scores: list[TrialScore] = []
         benchmark_scores: dict[str, list[TrialScore]] = {
@@ -67,16 +70,20 @@ class Orchestrator:
             reports.append(report)
             status = f"score={baseline_score.value:.4f}" if baseline_score else report.status.value
             print(f"[baseline] {status}", flush=True)
-        trials = expand_grid(self._config)
-        for position, parameters in enumerate(trials, start=1):
-            print(f"[{position}/{len(trials)}] {parameters.trial_id}: starting", flush=True)
+        search = create_search(self._config, directory)
+        position = 0
+        while (parameters := search.suggest()) is not None:
+            position += 1
+            print(f"[{position}/{search.total}] {parameters.trial_id}: starting", flush=True)
             report, score, scores_by_benchmark = await self._run_trial(directory, parameters)
             reports.append(report)
             if score is not None:
                 scores.append(score)
-                print(f"[{position}/{len(trials)}] completed score={score.value:.4f}")
+                search.complete(parameters, score.value)
+                print(f"[{position}/{search.total}] completed score={score.value:.4f}")
             else:
-                print(f"[{position}/{len(trials)}] {report.status.value}")
+                search.fail(parameters, report.status is WorkerStatus.INTERRUPTED)
+                print(f"[{position}/{search.total}] {report.status.value}")
             for name, value in scores_by_benchmark.items():
                 args = {**self._config.server.args, **parameters.server_args}
                 env = {**self._config.server.env, **parameters.server_env}

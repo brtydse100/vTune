@@ -4,10 +4,9 @@ from vtune.config.models import VTuneConfig
 
 
 def maximize_metric(config: VTuneConfig) -> str:
-    unknown = set(config.optimization) - {"maximize"}
     metric = config.optimization.get("maximize")
-    if unknown or not isinstance(metric, str) or not metric.strip():
-        raise ValueError("optimization requires only a non-empty 'maximize' metric")
+    if not isinstance(metric, str) or not metric.strip():
+        raise ValueError("optimization requires a non-empty 'maximize' metric")
     return metric
 
 

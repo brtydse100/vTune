@@ -264,6 +264,8 @@ baseline:
 
 optimization:
   maximize: output_tokens_per_second
+  sampler: tpe
+  trials: 50
 
 timeouts:
   startup: 900
@@ -361,26 +363,23 @@ their units where ambiguity is possible, for example `ttft_p99_ms`.
 ### Grid
 
 - Enumerates the Cartesian product in deterministic order.
-- Rejects `trials` greater than the grid size or treats it as the full grid.
-- Supports an optional maximum-trials cap with an explicit warning that the
-  grid is incomplete.
+- Evaluates the complete grid; `optimization.trials` is rejected for this sampler.
 
 ### Random
 
 - Samples from the declared space using the experiment seed.
-- Does not knowingly evaluate an identical resolved configuration twice.
-- Stops when the requested number of unique trials is reached or the finite
-  space is exhausted.
+- Runs exactly `optimization.trials` suggestions.
+- Persists suggestions and outcomes in the run's `study.db`.
 
 ### TPE
 
 - Uses Optuna's TPE sampler and the experiment seed.
-- Uses random sampling for the configured startup trial count.
+- Uses Optuna's default startup behavior.
 - Optimizes one scalar target score.
-- Stores invalid, failed, and constraint-violating outcomes distinctly.
-- Does not knowingly launch an already completed identical configuration.
+- Persists completed and failed outcomes in the run's `study.db`.
+- Marks stale Optuna `RUNNING` trials as failed when reopening a study.
 
-TPE optimizes only `optimization.target`. Secondary rankings must be labeled
+TPE optimizes only `optimization.maximize`. Secondary rankings must be labeled
 as the best configurations *among evaluated trials*, not as independently
 optimized global results.
 
@@ -600,10 +599,9 @@ change could affect results.
 
 ### 13.4 SQLite responsibilities
 
-SQLite stores experiment metadata, trial states, parameters, scenario
-evaluations, repeat metrics, constraints, scores, artifacts, and timestamps.
-Optuna may use the same database or a separate internal schema, but Optuna's
-schema must not be the only source of vTune domain data.
+For Random and TPE runs, Optuna stores search parameters, scalar scores, and
+trial states in `study.db`. vTune's backend-neutral domain results remain in
+`result.json`; the Optuna schema is not their source of truth.
 
 Filesystem artifacts are written atomically where practical. A crash between
 database and artifact writes must be detectable. Stale active attempts are
