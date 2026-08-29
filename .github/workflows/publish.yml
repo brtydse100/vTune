@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Immutable tag to publish
+        required: true
+        default: v0.1.0a1
 
 permissions:
   contents: read
@@ -13,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
