@@ -1,9 +1,10 @@
 # Release notes
 
-## Unreleased
+## v0.1.0a2 — Cleaner configuration and safer delivery
 
-The next prerelease is planned as `v0.1.0a2`. See its
-[draft release notes](docs/releases/v0.1.0a2.md).
+_August 30, 2026_
+
+See the [complete release notes](docs/releases/v0.1.0a2.md).
 
 ### Reports
 
