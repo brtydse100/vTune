@@ -53,7 +53,7 @@ never resumed or overwritten. Manual retries create a new linked run.
 - A benchmark backend other than GuideLLM.
 - Minimize, weighted, constrained, or multi-objective optimization.
 - Conditional search spaces, pruning, or server reuse.
-- Cross-run comparison, report regeneration, or a web service.
+- Cross-run comparison or a web service.
 - Automatic correctness or response-quality evaluation.
 - Windows or macOS execution guarantees.
 

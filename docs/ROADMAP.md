@@ -11,8 +11,7 @@ Future work should preserve these invariants:
 - Raw measurements remain separate from ranking and optimization policy.
 - A trial is one server configuration; a scenario evaluation is one workload
   result within that trial.
-- Reports should eventually be regenerable from persisted data without GPUs
-  or benchmarks; the MVP currently creates them only at the end of a run.
+- Reports remain regenerable from persisted data without GPUs or benchmarks.
 - Benchmark and server integrations use adapters.
 - Local execution remains the simplest default even after distributed support
   exists.
@@ -25,27 +24,26 @@ Future work should preserve these invariants:
 
 These features should follow immediately after the first working release.
 
-### Offline report regeneration
+### Offline report regeneration — completed in v0.1.0a2
 
-- Rebuild CSV and HTML from one completed `result.json` and trial artifacts.
-- Never require a GPU, vLLM, or GuideLLM process.
-- Preserve the original report by default and write a clearly versioned output.
-- Validate artifact schema versions before rendering.
+- Rebuilds HTML from one completed run and its validated trial artifacts.
+- Requires no GPU, vLLM, or GuideLLM process.
+- Preserves the original report and refuses destination overwrites.
+- Validates artifact schema and integrity before rendering.
 
-### Conditional search spaces
+### Conditional search spaces — next
 
 Allow parameters to be active only when another choice makes them valid:
 
 ```yaml
-server:
-  tune:
-    attention-backend:
-      values: [FLASH_ATTN, FLASHINFER]
+tune:
+  attention-backend:
+    values: [FLASH_ATTN, FLASHINFER]
 
-    flashinfer-option:
-      values: [a, b]
-      when:
-        attention-backend: FLASHINFER
+  flashinfer-option:
+    values: [a, b]
+    when:
+      attention-backend: FLASHINFER
 ```
 
 Requirements:
