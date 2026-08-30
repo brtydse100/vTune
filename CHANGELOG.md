@@ -1,14 +1,28 @@
 # Release notes
 
-## Unreleased
+## v0.1.0a4 — Easier setup and actionable diagnostics
+
+_August 30, 2026_
+
+### Installation
 
 - Added the optional `runtime` installation extra for vLLM and GuideLLM.
 - Added actionable errors when either runtime executable is unavailable.
 - Clarified the difference between experiment and inspection installations.
+
+### Runtime diagnostics
+
 - Reworked progress so each stage resolves on one line and baseline failures
   show their complete diagnostic immediately.
 - Preserved root-cause exception lines in failure excerpts instead of showing
   only the end of long tracebacks.
+
+### Documentation
+
+- Added a complete commented YAML reference covering every vTune section,
+  tuning syntax, benchmark profile, request route, and dataset family.
+- Added a dedicated installation guide for core-only and experiment-runtime
+  environments, including native Windows and WSL differences.
 
 ## v0.1.0a3 — Clearer benchmarks and trustworthy results
 
