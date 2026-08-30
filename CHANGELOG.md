@@ -1,6 +1,8 @@
 # Release notes
 
-## Unreleased
+## v0.1.0a3 — Clearer benchmarks and trustworthy results
+
+_August 30, 2026_
 
 ### Runtime and diagnostics
 
