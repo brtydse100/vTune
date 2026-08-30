@@ -26,7 +26,7 @@ def expand_grid(config: VTuneConfig) -> tuple[TrialParameters, ...]:
     ]
     combinations = product(*(entry[2] for entry in options)) if options else [()]
     trials = []
-    for index, combination in enumerate(combinations):
+    for index, combination in enumerate(combinations, start=1):
         arguments: dict[str, object] = {}
         environment: dict[str, object] = {}
         for (kind, name, _), value in zip(options, combination):

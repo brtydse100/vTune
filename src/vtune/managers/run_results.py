@@ -58,6 +58,9 @@ class RunResultsManager:
         if ranking:
             best = ranking[0]
             lines.extend((f"Best overall: {best.trial_id} ({best.value:.4f})",
+                          f"Request quality: {best.successful_requests} successful, "
+                          f"{best.errored_requests} errored, "
+                          f"{best.incomplete_requests} incomplete",
                           f"Server args: {redact_values(best.server_args)}",
                           f"Server env: {redact_environment(_strings(best.server_env))}"))
         else:
@@ -79,6 +82,11 @@ class RunResultsManager:
 
 def _document(score: TrialScore) -> dict[str, object]:
     return {"trial_id": score.trial_id, "score": score.value,
+            "successful_requests": score.successful_requests,
+            "errored_requests": score.errored_requests,
+            "incomplete_requests": score.incomplete_requests,
+            "excluded_workloads": score.excluded_workloads,
+            "error_rate": score.error_rate,
             "server_args": redact_values(score.server_args),
             "server_env": redact_environment(_strings(score.server_env))}
 

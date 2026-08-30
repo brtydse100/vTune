@@ -97,6 +97,10 @@ Each entry under `benchmark.runs` is a GuideLLM invocation. A single trial may
 contain several benchmark runs, but they all evaluate the same running server
 configuration. vTune always preserves normalized JSON and `benchmark.log`.
 
+Every supported profile, constraint, request format, and dataset form has a
+copyable example in [benchmark configuration](benchmarking.md). See the
+[complete YAML](full-example.md) for all vTune sections together.
+
 ## Logging and timeouts
 
 ```yaml
@@ -104,9 +108,10 @@ logging:
   level: INFO
 timeouts:
   startup: 15m
-  benchmark: auto
+  benchmark: 20m
 ```
 
 Logging levels match GuideLLM: `DEBUG`, `INFO`, `WARNING`, `ERROR`, and
-`CRITICAL`. Automatic benchmark timeouts use the configured GuideLLM duration
-plus a safety margin.
+`CRITICAL`. Both timeouts accept seconds or values such as `30s`, `15m`, and
+`1h`. Omit `timeouts.benchmark` to derive it from the GuideLLM constraint plus
+a safety margin. The literal value `auto` is not accepted.

@@ -5,9 +5,10 @@ from pathlib import Path
 from typing import Mapping
 
 from vtune.benchmarks.guidellm import configured_repeats, configured_runs
+from vtune.benchmarks.timing import timeout_for_run
 from vtune.config.models import VTuneConfig
 from vtune.config.runtime import (
-    baseline_enabled, logging_level, max_attempts, maximize_metric, server_port,
+    baseline_enabled, duration, logging_level, max_attempts, maximize_metric, server_port,
 )
 from vtune.domain.results import WorkerStatus
 from vtune.domain.trial_report import TrialReport
@@ -16,7 +17,7 @@ from vtune.managers.run_results import RunResultsManager
 from vtune.managers.run_session import RunAccumulator, run_status
 from vtune.managers.scoring import ScoringManager, TrialScore
 from vtune.managers.trial import TrialManager
-from vtune.search import TrialParameters, create_search, validate_search
+from vtune.search import TrialParameters, create_search, search_warning, validate_search
 from vtune.search.fixed_session import FixedSearchSession
 from vtune.terminal import TerminalLogger
 from vtune.reporting import Reporter
@@ -55,12 +56,15 @@ class Orchestrator:
         self._terminal = TerminalLogger(logging_level(config))
 
     def validate(self) -> None:
-        configured_runs(self._config)
+        runs = configured_runs(self._config)
         configured_repeats(self._config)
         if self._retry_trials is None:
             validate_search(self._config)
         server_port(self._config)
         baseline_enabled(self._config)
+        duration(self._config.timeouts, "startup", 900)
+        for run in runs:
+            timeout_for_run(run, self._config.timeouts.get("benchmark"))
 
     async def run(self) -> RunOutcome:
         self.validate()
@@ -74,6 +78,8 @@ class Orchestrator:
         session.persist(results, run_id, self._metric, "running", started_at, None,
                         self._source_run_id, self._sources)
         self._terminal.info(f"Run: {run_id}\nDirectory: {directory.resolve()}")
+        if self._retry_trials is None and (warning := search_warning(self._config)):
+            self._terminal.warning(f"WARNING: {warning}")
         self._manifest = ManifestWriter(collect_metadata())
         interrupted = False
         if self._retry_trials is None and baseline_enabled(self._config):
@@ -90,18 +96,38 @@ class Orchestrator:
             interrupted = report.status is WorkerStatus.INTERRUPTED
         search = (FixedSearchSession(self._retry_trials) if self._retry_trials is not None
                   else create_search(self._config, directory))
+        self._terminal.experiment({
+            "Experiment": self._config.experiment.name,
+            "Sampler": self._config.optimization.get("sampler", "grid"),
+            "Trials": search.total,
+            "Objective": self._metric,
+            "Output": directory.resolve(),
+        })
         position = 0
         while not interrupted and (parameters := search.suggest()) is not None:
             position += 1
-            self._terminal.info(f"[{position}/{search.total}] {parameters.trial_id}: starting")
+            shown = {**parameters.server_args,
+                     **{f"env.{key}": value for key, value in parameters.server_env.items()}}
+            self._terminal.trial(position, search.total, parameters.trial_id, shown)
             report, score, scores_by_benchmark = await self._run_trial(directory, parameters)
             session.record(parameters, report, score, scores_by_benchmark)
             if score is not None:
                 search.complete(parameters, score.value)
-                self._terminal.info(f"[{position}/{search.total}] completed score={score.value:.4f}")
+                failed_requests = score.errored_requests + score.incomplete_requests
+                self._terminal.info(
+                    f"OK Trial completed — score={score.value:.4f}, "
+                    f"errors={failed_requests}, error_rate={score.error_rate:.2%}"
+                )
+                best = session.ranking[0]
+                self._terminal.info(
+                    f"Best so far: {best.trial_id} — score={best.value:.4f}, "
+                    f"error_rate={best.error_rate:.2%}"
+                )
             else:
                 search.fail(parameters, report.status is WorkerStatus.INTERRUPTED)
-                self._terminal.warning(f"[{position}/{search.total}] {report.status.value}")
+                detail = (f"{report.failure.code}: {report.failure.message}"
+                          if report.failure else report.status.value)
+                self._terminal.warning(f"Trial {position} {report.status.value}: {detail}")
             session.persist(results, run_id, self._metric, "running", started_at, None,
                             self._source_run_id, self._sources)
             if report.status is WorkerStatus.INTERRUPTED:
@@ -130,6 +156,7 @@ class Orchestrator:
         outcome = await TrialManager(
             build_trial_workers(self._config, parameters, trial_dir),
             max_attempts(self._config),
+            self._terminal.stage,
         ).execute(context)
         manifest_path = trial_dir / "manifest.json"
         result_path = trial_dir / "result.json"
@@ -148,4 +175,8 @@ class Orchestrator:
         args = {**{name: value for name, value in self._config.server.items()
                    if name != "model"}, **parameters.server_args}
         env = {**self._config.env, **parameters.server_env}
-        return report, TrialScore(parameters.trial_id, value, args, env), by_benchmark
+        quality = self._scoring.quality(results)
+        return report, TrialScore(
+            parameters.trial_id, value, args, env, quality.successful,
+            quality.errored, quality.incomplete, quality.excluded_workloads,
+        ), by_benchmark

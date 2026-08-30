@@ -14,13 +14,13 @@ Increase `timeouts.startup` only if logs show useful model-loading progress.
 
 ## Benchmark times out
 
-Use `timeouts.benchmark: auto` unless a custom limit is necessary. Inspect
-`benchmark.log` for request or dataset failures.
+Omit `timeouts.benchmark` for a derived limit, or set an explicit duration such
+as `20m`. Inspect the timeout message and `benchmark.log` path it prints.
 
 ## TPE trials are fewer than requested
 
-The requested trial count cannot exceed the finite number of unique resolved
-configurations. Increase the search space or reduce `optimization.trials`.
+vTune warns and caps the run to the finite number of unique resolved
+configurations. Increase the search space if more distinct trials are needed.
 
 ## A retry source folder was deleted
 

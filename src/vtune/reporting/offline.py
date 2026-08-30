@@ -94,7 +94,15 @@ def _score(value: Mapping[str, object]) -> TrialScore:
              "stored ranking contains an invalid score")
     return TrialScore(_text(value, "trial_id"), float(score),
                       dict(_mapping(value, "server_args")),
-                      dict(_mapping(value, "server_env")))
+                      dict(_mapping(value, "server_env")),
+                      _optional_count(value.get("successful_requests")),
+                      _optional_count(value.get("errored_requests")),
+                      _optional_count(value.get("incomplete_requests")),
+                      _optional_count(value.get("excluded_workloads")))
+
+
+def _optional_count(value: object) -> int:
+    return value if isinstance(value, int) and value >= 0 else 0
 
 
 def _validate_scores(

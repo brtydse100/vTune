@@ -123,7 +123,7 @@ optimization:
 
 timeouts:
   startup: 900
-  benchmark: auto
+  benchmark: 20m
 
 execution:
   host: 127.0.0.1
@@ -184,7 +184,8 @@ passed through without a vTune allowlist.
 
 - `grid` evaluates the complete Cartesian product and rejects `trials`.
 - `random` and `tpe` require a positive `trials` value.
-- Requested trials cannot exceed the finite number of unique configurations.
+- Requested trials are capped with a warning at the number of unique
+  configurations.
 - A repeated Optuna suggestion is marked skipped and replaced before any
   vLLM process starts.
 - `experiment.seed` controls Random and TPE sampling when supplied.
@@ -202,12 +203,12 @@ separately and can still be the best observed recommendation in HTML.
 ### Timeouts and retries
 
 `timeouts.startup` is a positive number of seconds. `timeouts.benchmark` is a
-positive duration or `auto`. Durations accept seconds or strings such as
+positive duration. Durations accept seconds or strings such as
 `30s`, `2m`, and `1h`.
 
-Automatic benchmark timeout uses the GuideLLM duration constraint, workload
-strategy count, and a safety margin. Without a duration constraint it defaults
-to 180 seconds.
+When `timeouts.benchmark` is omitted, vTune uses the GuideLLM duration
+constraint, workload strategy count, and a safety margin. Without a duration
+constraint it defaults to 180 seconds. The literal value `auto` is invalid.
 
 `execution.retry.max_attempts` defaults to one. Only failures marked retryable
 are attempted again. Startup and benchmark timeouts and recognized connection
@@ -265,7 +266,7 @@ runs/EXPERIMENT/RUN_ID/
 ├── report.html
 ├── study.db                 # Random and TPE only
 └── trials/
-    └── trial-0000/
+    └── trial-0001/
         ├── manifest.json
         ├── result.json
         └── attempts/001/

@@ -5,7 +5,7 @@ from pathlib import Path
 from vtune.benchmarks.guidellm import configured_repeats, configured_runs
 from vtune.benchmarks.timing import timeout_for_run
 from vtune.config.models import VTuneConfig
-from vtune.config.runtime import logging_level, positive, server_port
+from vtune.config.runtime import duration, logging_level, positive, server_port
 from vtune.search.grid import TrialParameters
 from vtune.workers.base import Worker
 from vtune.workers.benchmark import GuideLLMBenchmarkWorker
@@ -28,14 +28,14 @@ def build_trial_workers(
             host=str(execution.get("host", "127.0.0.1")),
             port=server_port(config),
             path=str(execution.get("health_path", "/health")),
-            startup_timeout=positive(config.timeouts, "startup", 900),
+            startup_timeout=duration(config.timeouts, "startup", 900),
         ),
     )
     repeats = configured_repeats(config)
     return workers + tuple(
         GuideLLMBenchmarkWorker(
             config, run, ProcessRunner(debug, f"guidellm:{run['name']}"), directory,
-            timeout=timeout_for_run(run, config.timeouts.get("benchmark", "auto")),
+            timeout=timeout_for_run(run, config.timeouts.get("benchmark")),
             shutdown_grace=grace, repeat_index=repeat,
         )
         for run in configured_runs(config)

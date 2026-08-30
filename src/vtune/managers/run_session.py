@@ -36,6 +36,10 @@ class RunAccumulator:
             self._benchmark_scores[name].append(TrialScore(
                 parameters.trial_id, value,
                 score.server_args if score else {}, score.server_env if score else {},
+                score.successful_requests if score else 0,
+                score.errored_requests if score else 0,
+                score.incomplete_requests if score else 0,
+                score.excluded_workloads if score else 0,
             ))
 
     @property

@@ -83,7 +83,9 @@ Fixed vLLM flags go directly under `server`; tunable flags use top-level
 `tune`. Fixed and tunable environment variables use `env` and `tune_env`.
 See the [configuration guide](https://brtydse100.github.io/vTune/configuration/)
 for categorical, boolean, integer-range, float-range, list, and environment
-examples.
+examples. The [complete YAML](https://brtydse100.github.io/vTune/full-example/)
+and [benchmark guide](https://brtydse100.github.io/vTune/benchmarking/) show
+every supported control with copyable examples.
 
 Terminal output is concise by default. To stream vLLM and GuideLLM logs:
 
@@ -122,9 +124,9 @@ Each completed run also contains a self-contained `report.html` decision
 dashboard with the best observed configuration, baseline comparison, score
 history, throughput/latency tradeoff, and observed parameter effects.
 
-Random and TPE runs never execute the same resolved configuration twice.
-`optimization.trials` cannot exceed the number of unique configurations in
-the declared search space.
+Random and TPE runs never execute the same resolved configuration twice. If
+`optimization.trials` exceeds the unique search space, vTune warns and runs
+every unique configuration once.
 
 ## Product documents
 

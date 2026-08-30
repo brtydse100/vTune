@@ -13,7 +13,7 @@ from vtune.reporting.charts import (
 )
 from vtune.reporting.context import ReportContext
 from vtune.reporting.tables import (
-    benchmark_table, changes_table, failures, ranking_table,
+    benchmark_table, changes_table, evidence_table, failures, ranking_table,
 )
 from vtune.reproduction.export import export_vllm_command
 
@@ -39,6 +39,11 @@ def render_dashboard(
     ))
     command = _best_command(directory, best)
     importance = _importance(ranking)
+    request_total = (best.successful_requests + best.errored_requests
+                     + best.incomplete_requests) if best else 0
+    quality = (f"{best.errored_requests + best.incomplete_requests} failed or incomplete "
+               f"of {request_total}" if best and request_total
+               else "Request counts unavailable" if best else "No eligible result")
     source = (f"<p>Retry source: <code>{escape(context.source_run_id)}</code></p>"
               if context.source_run_id else "")
     return f"""<!doctype html><html><head><meta charset='utf-8'>
@@ -49,9 +54,15 @@ def render_dashboard(
 · Completed {escape(context.completed_at or 'unknown')}</p>{source}</div>
 <span class='status'>{escape(context.status)}</span></header>
 <main><section class='cards'>{cards}</section>
-<section><h2>Recommended configuration</h2>{changes_table(best, baseline)}
+<section><h2>Recommendation</h2>
+<p><strong>{escape(best.trial_id) if best else 'No eligible trial'}</strong> was selected by lowest request
+error percentage, then lowest error count, then highest <code>{escape(metric)}</code>.
+Request quality: {escape(quality)}.</p>{changes_table(best, baseline)}
 <p class='note'>These are observed relationships, not guaranteed causal effects. Multiple settings may change together.</p>
 <h3>Reproduction command</h3><pre>{escape(command)}</pre></section>
+<section><h2>Evidence behind the ranking</h2>{evidence_table(ranking)}
+<p class='note'>A workload is excluded from score calculation when more than half of its requests
+are errored or incomplete. A trial with no eligible workload is not ranked.</p></section>
 <section class='split'><div><h2>Baseline vs top configurations</h2>{comparison_chart(ranking, baseline)}</div>
 <div><h2>Score over time</h2>{history_chart(trials, ranking)}</div></section>
 <section class='split'><div><h2>Parameter importance</h2>{importance}</div>
@@ -71,9 +82,11 @@ def _card(label: str, value: str, detail: str) -> str:
 
 
 def _importance(ranking: tuple[TrialScore, ...]) -> str:
+    if len(ranking) < 5:
+        return ("<p class='muted'>Not shown: fewer than 5 eligible tuned trials. "
+                "A percentage here would look precise without enough evidence.</p>")
     values = parameter_importance(ranking)
-    confidence = ("Low confidence: fewer than 5 successful tuned trials."
-                  if len(ranking) < 5 else "Exploratory estimate from evaluated trials.")
+    confidence = "Exploratory association across evaluated trials; it is not causal."
     bars = "".join(
         f"<div class='hbar'><span>{escape(name)}</span><i style='width:{value * 70:.1f}%'></i>"
         f"<b>{value:.1%}</b></div>" for name, value in values.items()
@@ -100,7 +113,9 @@ def _best_observed(
     best_tuned: TrialScore | None, baseline: TrialScore | None,
 ) -> TrialScore | None:
     candidates = [item for item in (best_tuned, baseline) if item is not None]
-    return max(candidates, key=lambda item: item.value) if candidates else None
+    return min(candidates, key=lambda item: (
+        item.error_rate, item.errored_requests + item.incomplete_requests, -item.value,
+    )) if candidates else None
 
 
 def _css() -> str:

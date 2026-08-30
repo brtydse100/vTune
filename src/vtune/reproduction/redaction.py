@@ -4,7 +4,8 @@ from collections.abc import Mapping, Sequence
 import re
 
 _SECRET_NAME = re.compile(
-    r"(?:TOKEN|PASSWORD|PASSWD|SECRET|API[-_]?KEY|PRIVATE[-_]?KEY)", re.I,
+    r"(?:^|[-_])(?:TOKEN|PASSWORD|PASSWD|SECRET|API[-_]?KEY|PRIVATE[-_]?KEY)(?:$|[-_])",
+    re.I,
 )
 REDACTED = "<redacted>"
 

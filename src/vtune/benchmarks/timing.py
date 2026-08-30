@@ -23,9 +23,9 @@ def parse_duration(value: object, label: str = "duration") -> float:
     return seconds
 
 
-def timeout_for_run(run: Mapping[str, object], configured: object = "auto") -> float:
+def timeout_for_run(run: Mapping[str, object], configured: object = None) -> float:
     """Return an explicit timeout or estimate duration plus a safety margin."""
-    if configured != "auto":
+    if configured is not None:
         return parse_duration(configured, "timeouts.benchmark")
     duration = _duration_constraint(run)
     if duration is None:

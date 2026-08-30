@@ -25,12 +25,16 @@ def validate_search(config: VTuneConfig) -> tuple[str, int]:
     if isinstance(trials, bool) or not isinstance(trials, int) or trials < 1:
         raise ValueError("optimization.trials must be a positive integer")
     unique = len(expand_grid(config))
-    if trials > unique:
-        raise ValueError(
-            f"optimization.trials requests {trials} trials, but the search space "
-            f"contains only {unique} unique configuration(s)"
-        )
-    return sampler, trials
+    return sampler, min(trials, unique)
+
+
+def search_warning(config: VTuneConfig) -> str | None:
+    sampler, effective = validate_search(config)
+    requested = config.optimization.get("trials")
+    if sampler != "grid" and isinstance(requested, int) and requested > effective:
+        return (f"Requested {requested} trials, but the search space contains only "
+                f"{effective} unique configurations; running {effective} trials.")
+    return None
 
 
 def create_search(config: VTuneConfig, directory: Path) -> SearchSession:

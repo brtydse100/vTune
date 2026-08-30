@@ -1,6 +1,7 @@
 """Validated runtime policy values derived from an experiment configuration."""
 
 from vtune.config.models import VTuneConfig
+from vtune.benchmarks.timing import parse_duration
 
 
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
@@ -36,6 +37,11 @@ def positive(values: object, key: str, default: float) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float) or value <= 0:
         raise ValueError(f"'{key}' must be a positive number")
     return float(value)
+
+
+def duration(values: object, key: str, default: float) -> float:
+    value = values.get(key, default)  # type: ignore[union-attr]
+    return parse_duration(value, f"timeouts.{key}")
 
 
 def server_port(config: VTuneConfig) -> int:

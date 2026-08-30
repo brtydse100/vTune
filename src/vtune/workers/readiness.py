@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from http import HTTPStatus
 from pathlib import Path
 from time import monotonic
 from urllib.error import HTTPError, URLError
@@ -24,7 +25,7 @@ async def http_health_probe(url: str, timeout: float) -> bool:
     def request() -> bool:
         try:
             with urlopen(url, timeout=timeout) as response:
-                return 200 <= response.status < 300
+                return HTTPStatus.OK <= response.status < HTTPStatus.MULTIPLE_CHOICES
         except (HTTPError, URLError, TimeoutError, OSError):
             return False
 
@@ -80,10 +81,12 @@ class ReadinessWorker:
                 return self._early_exit(process.returncode, context)
             remaining = deadline - monotonic()
             if remaining <= 0:
-                return WorkerResult.failed(Failure(
-                    "server_startup_timeout",
-                    f"vLLM was not ready after {self._startup_timeout:g} seconds",
-                    retryable=True,
+                log_path = Path(str(context.artifacts.get("vllm_log", "")))
+                return WorkerResult.failed(classified_failure(
+                    log_path, "server_startup_timeout",
+                    f"vLLM startup timed out after {self._startup_timeout:g}s; "
+                    f"process is alive; health endpoint {self._health_url} was not ready; "
+                    f"full log: {log_path}", True,
                 ))
             probe_timeout = min(self._request_timeout, remaining)
             try:

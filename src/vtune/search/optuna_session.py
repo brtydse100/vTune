@@ -53,7 +53,7 @@ class OptunaSearchSession:
                 self._enqueue_remaining()
                 continue
             optuna_trial.set_user_attr("vtune_configuration", fingerprint)
-            trial = TrialParameters(f"trial-{len(self._seen):04d}", arguments, environment)
+            trial = TrialParameters(f"trial-{len(self._seen) + 1:04d}", arguments, environment)
             self._seen.add(fingerprint)
             self._active[trial.trial_id] = optuna_trial
             return trial

@@ -74,7 +74,8 @@ def _validate_selected_keys(
 def _render_argument(name: str, value: object) -> list[str]:
     if not isinstance(name, str) or not name.strip():
         raise ValueError("vLLM argument names must be non-empty strings")
-    flag = name if name.startswith("--") else f"--{name}"
+    normalized = name[2:] if name.startswith("--") else name
+    flag = f"--{normalized.replace('_', '-')}"
     if value is True:
         return [flag]
     if value is False or value is None:

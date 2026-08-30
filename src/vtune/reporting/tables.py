@@ -17,10 +17,23 @@ def ranking_table(
     unique = _unique_changed(ranking, baseline)
     rows = "".join(
         f"<tr><td>{index}</td><td>{escape(item.trial_id)}</td><td>{item.value:.4f}</td>"
+        f"<td>{item.error_rate:.2%}</td><td>{item.errored_requests}</td>"
         f"<td><code>{escape(json.dumps(changes, sort_keys=True))}</code></td></tr>"
         for index, (item, changes) in enumerate(unique, start=1)
     )
-    return _table(("Rank", "Trial", "Score", "Changed settings"), rows)
+    return _table(("Rank", "Trial", "Score", "Error rate", "Errors",
+                   "Changed settings"), rows)
+
+
+def evidence_table(ranking: tuple[TrialScore, ...]) -> str:
+    rows = "".join(
+        f"<tr><td>{escape(item.trial_id)}</td><td>{item.value:.4f}</td>"
+        f"<td>{item.successful_requests}</td><td>{item.errored_requests}</td>"
+        f"<td>{item.incomplete_requests}</td><td>{item.error_rate:.2%}</td>"
+        f"<td>{item.excluded_workloads}</td></tr>" for item in ranking
+    )
+    return _table(("Trial", "Metric", "Successful", "Errored", "Incomplete",
+                   "Error rate", "Excluded workloads"), rows)
 
 
 def benchmark_table(context: ReportContext) -> str:

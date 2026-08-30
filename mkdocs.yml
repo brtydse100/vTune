@@ -34,6 +34,8 @@ nav:
   - Get started:
       - Quick start: getting-started.md
       - Configuration: configuration.md
+      - Complete YAML: full-example.md
+      - Benchmarks and datasets: benchmarking.md
       - Search and scoring: search-and-scoring.md
   - Use vTune:
       - CLI reference: cli.md

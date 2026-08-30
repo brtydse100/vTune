@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from vtune.domain.attempt_report import AttemptReport
 from vtune.domain.results import Failure, WorkerResult, WorkerStatus
@@ -13,11 +13,15 @@ from vtune.workers.base import TrialContext, Worker
 class TrialManager:
     """Execute workers, guarantee cleanup, and retry transient failures."""
 
-    def __init__(self, workers: Sequence[Worker], max_attempts: int = 1) -> None:
+    def __init__(
+        self, workers: Sequence[Worker], max_attempts: int = 1,
+        progress: Callable[[str, str], None] | None = None,
+    ) -> None:
         if isinstance(max_attempts, bool) or not isinstance(max_attempts, int) or max_attempts < 1:
             raise ValueError("max_attempts must be a positive integer")
         self._workers = tuple(workers)
         self._max_attempts = max_attempts
+        self._progress = progress or (lambda event, name: None)
 
     async def execute(self, context: TrialContext) -> WorkerResult[TrialContext]:
         outcome: WorkerResult[TrialContext] = WorkerResult.completed(context)
@@ -41,8 +45,10 @@ class TrialManager:
         try:
             for worker in self._workers:
                 started.append(worker)
+                self._progress("starting", worker.name)
                 result = await worker.execute(context)
                 if result.status is WorkerStatus.FAILED:
+                    self._progress("failed", worker.name)
                     outcome = WorkerResult.failed(self._failure_from(result, worker))
                     break
                 if result.status is WorkerStatus.INTERRUPTED:
@@ -50,6 +56,7 @@ class TrialManager:
                         self._interruption_message(result, worker)
                     )
                     break
+                self._progress("completed", worker.name)
         except asyncio.CancelledError:
             outcome = WorkerResult.interrupted("Trial execution was interrupted")
         except Exception as error:
@@ -64,11 +71,13 @@ class TrialManager:
 
     async def _cleanup(self, workers: list[Worker], context: TrialContext) -> list[str]:
         errors = []
+        self._progress("starting", "cleanup")
         for worker in reversed(workers):
             try:
                 await worker.cleanup(context)
             except Exception as error:
                 errors.append(f"Cleanup for worker '{worker.name}' failed: {error}")
+        self._progress("failed" if errors else "completed", "cleanup")
         return errors
 
     @staticmethod

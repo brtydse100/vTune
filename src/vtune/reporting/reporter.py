@@ -42,12 +42,19 @@ class Reporter:
     def _write_csv(path: Path, ranking: tuple[TrialScore, ...]) -> None:
         with path.open("w", newline="", encoding="utf-8") as stream:
             writer = csv.DictWriter(
-                stream, fieldnames=("rank", "trial_id", "score", "server_args", "server_env")
+                stream, fieldnames=("rank", "trial_id", "score", "successful_requests",
+                                    "errored_requests", "incomplete_requests", "error_rate",
+                                    "excluded_workloads", "server_args", "server_env")
             )
             writer.writeheader()
             for rank, item in enumerate(ranking, start=1):
                 writer.writerow({"rank": rank, "trial_id": item.trial_id,
                                  "score": item.value,
+                                 "successful_requests": item.successful_requests,
+                                 "errored_requests": item.errored_requests,
+                                 "incomplete_requests": item.incomplete_requests,
+                                 "error_rate": item.error_rate,
+                                 "excluded_workloads": item.excluded_workloads,
                                  "server_args": json.dumps(dict(item.server_args), sort_keys=True),
                                  "server_env": json.dumps(dict(item.server_env), sort_keys=True)})
 
@@ -55,4 +62,6 @@ class Reporter:
 def _redacted(score: TrialScore) -> TrialScore:
     environment = {str(name): str(value) for name, value in score.server_env.items()}
     return TrialScore(score.trial_id, score.value, redact_values(score.server_args),
-                      redact_environment(environment))
+                      redact_environment(environment), score.successful_requests,
+                      score.errored_requests, score.incomplete_requests,
+                      score.excluded_workloads)

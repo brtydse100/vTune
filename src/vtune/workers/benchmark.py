@@ -66,7 +66,9 @@ class GuideLLMBenchmarkWorker:
             await process.stop(self._shutdown_grace)
             return WorkerResult.failed(
                 classified_failure(plan.log_path, "benchmark_timeout",
-                                   f"GuideLLM exceeded its {self._timeout:g}s timeout", True)
+                                   f"GuideLLM benchmark '{plan.run_name}' timed out after "
+                                   f"{self._timeout:g}s and was stopped; full log: "
+                                   f"{plan.log_path}", True)
             )
         if returncode:
             return WorkerResult.failed(classified_failure(

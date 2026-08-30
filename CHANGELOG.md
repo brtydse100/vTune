@@ -1,5 +1,29 @@
 # Release notes
 
+## Unreleased
+
+### Runtime and diagnostics
+
+- Added one-based trial IDs, structured lifecycle progress, best-so-far output,
+  default failure details, and richer timeout diagnostics.
+- Accepted duration strings for startup timeouts and made omitted benchmark
+  timeouts automatic; the literal `auto` value is no longer accepted.
+- Capped excessive trial requests with a warning instead of stopping the run.
+- Accepted underscore-style vLLM argument names and fixed false secret
+  redaction of token-count settings.
+
+### Ranking and reports
+
+- Added GuideLLM request-success and error accounting.
+- Excluded workloads with more than 50% failed or incomplete requests.
+- Ranked eligible trials by error rate, error count, then objective value.
+- Added transparent ranking evidence and eligibility explanations to reports.
+
+### Documentation
+
+- Added a complete YAML example and examples for every exposed GuideLLM
+  profile, constraint, request format, and dataset family.
+
 ## v0.1.0a2 — Cleaner configuration and safer delivery
 
 _August 30, 2026_
