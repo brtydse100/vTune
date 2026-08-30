@@ -24,17 +24,31 @@ validation and stored-result inspection work on Windows, but starting an
 experiment is supported only on Linux because vLLM has no native Windows
 runtime.
 
+## Installation
+
+Choose the installation that matches what you want to do:
+
+| Goal | Command | Platform |
+| --- | --- | --- |
+| Run complete experiments | `pip install "vtune[runtime]"` | Linux/WSL with NVIDIA GPU |
+| Read configs, results, and reports | `pip install vtune` | Linux, Windows, or macOS |
+
+The core package intentionally does not install GPU frameworks. The `runtime`
+extra adds vLLM and GuideLLM, which select large PyTorch/CUDA dependencies for
+the machine. See the [installation guide](https://brtydse100.github.io/vTune/installation/)
+for virtual environments, CUDA guidance, and verification commands.
+
 ## Quick start
 
-Requirements: Linux, an NVIDIA GPU, a local model directory, and working
-`vllm` and `guidellm` commands.
-
-Install the current code:
+Create and activate a Python 3.11 or 3.12 virtual environment on Linux or WSL,
+then install the complete experiment runtime:
 
 ```bash
-git clone https://github.com/brtydse100/vTune.git
-cd vTune
-pip install -e .
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install "vtune[runtime]"
+vllm --help
+guidellm --help
 ```
 
 Create `experiment.yaml`:

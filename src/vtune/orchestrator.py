@@ -81,9 +81,21 @@ class Orchestrator:
         if self._retry_trials is None and (warning := search_warning(self._config)):
             self._terminal.warning(f"WARNING: {warning}")
         self._manifest = ManifestWriter(collect_metadata())
+        search = (FixedSearchSession(self._retry_trials) if self._retry_trials is not None
+                  else create_search(self._config, directory))
+        self._terminal.experiment({
+            "Experiment": self._config.experiment.name,
+            "Sampler": self._config.optimization.get("sampler", "grid"),
+            "Trials": search.total,
+            "Baseline": "enabled" if (
+                self._retry_trials is None and baseline_enabled(self._config)
+            ) else "disabled",
+            "Objective": self._metric,
+            "Output": directory.resolve(),
+        })
         interrupted = False
         if self._retry_trials is None and baseline_enabled(self._config):
-            self._terminal.info("[baseline] starting")
+            self._terminal.baseline()
             parameters = TrialParameters("baseline", {}, {})
             report, score, by_benchmark = await self._run_trial(
                 directory, parameters
@@ -91,18 +103,13 @@ class Orchestrator:
             session.record(parameters, report, score, by_benchmark, baseline=True)
             session.persist(results, run_id, self._metric, "running", started_at, None,
                             self._source_run_id, self._sources)
-            status = f"score={score.value:.4f}" if score else report.status.value
-            self._terminal.info(f"[baseline] {status}")
+            if score:
+                self._terminal.info(f"OK Baseline completed — score={score.value:.4f}")
+            else:
+                detail = (f"{report.failure.code}: {report.failure.message}"
+                          if report.failure else report.status.value)
+                self._terminal.warning(f"Baseline {report.status.value}: {detail}")
             interrupted = report.status is WorkerStatus.INTERRUPTED
-        search = (FixedSearchSession(self._retry_trials) if self._retry_trials is not None
-                  else create_search(self._config, directory))
-        self._terminal.experiment({
-            "Experiment": self._config.experiment.name,
-            "Sampler": self._config.optimization.get("sampler", "grid"),
-            "Trials": search.total,
-            "Objective": self._metric,
-            "Output": directory.resolve(),
-        })
         position = 0
         while not interrupted and (parameters := search.suggest()) is not None:
             position += 1

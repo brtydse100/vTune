@@ -47,6 +47,12 @@ class VLLMRunnerWorker:
             ))
             context.values["vllm_started_at"] = monotonic()
             process = await self._runner.start(spec, log_path)
+        except FileNotFoundError:
+            return WorkerResult.failed(Failure(
+                code="vllm_not_found",
+                message=("The 'vllm' command was not found. On Linux or WSL, "
+                         "install runtime tools with: pip install 'vtune[runtime]'"),
+            ))
         except Exception as error:
             return WorkerResult.failed(
                 Failure(

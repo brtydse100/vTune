@@ -1,29 +1,29 @@
 # Quick start
 
-You need Linux, an NVIDIA GPU, a local model directory, and working `vllm` and
-`guidellm` commands.
+You need Linux or WSL, an NVIDIA GPU, and a local model directory. Native
+Windows can inspect configurations and reports but cannot run vLLM.
 
 ## 1. Prepare the tools
 
-Create a Python 3.11 or 3.12 environment on Linux with an NVIDIA GPU, then
-install vLLM and GuideLLM using the versions suitable for that machine. Confirm
-that both commands are available:
+Create and activate an isolated Python 3.11 or 3.12 environment:
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+```
+
+## 2. Install the complete runtime
+
+```bash
+python -m pip install "vtune[runtime]"
 vllm --help
 guidellm --help
 ```
 
-## 2. Install vTune
-
-The simplified configuration below is currently on `main` and will ship in the
-next alpha:
-
-```bash
-git clone https://github.com/brtydse100/vTune.git
-cd vTune
-pip install -e .
-```
+This installs vTune, vLLM, and GuideLLM together. Use plain `pip install vtune`
+only on machines that will inspect configurations, artifacts, and reports
+without launching experiments. See [installation choices](installation.md).
 
 ## 3. Create `experiment.yaml`
 

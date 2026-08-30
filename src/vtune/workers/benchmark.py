@@ -55,6 +55,12 @@ class GuideLLMBenchmarkWorker:
             process = await self._runner.start(
                 ProcessSpec(plan.argv, env=self._environment()), plan.log_path
             )
+        except FileNotFoundError:
+            return self._failed(
+                "guidellm_not_found",
+                "The 'guidellm' command was not found. On Linux or WSL, "
+                "install runtime tools with: pip install 'vtune[runtime]'",
+            )
         except Exception as error:
             return self._failed("benchmark_launch_failed", str(error))
         context.values[self._ownership_key] = process

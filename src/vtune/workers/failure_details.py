@@ -7,6 +7,7 @@ from pathlib import Path
 from vtune.domain.results import Failure
 
 _PATTERNS = (
+    (("uva is not available",), "uva_unavailable", False),
     (("cuda out of memory", "torch.outofmemoryerror", "cuda oom"), "cuda_oom", False),
     (("no such option", "unrecognized arguments", "invalid value for"),
      "invalid_argument", False),
@@ -37,4 +38,13 @@ def log_excerpt(path: Path, lines: int = 8) -> str:
     except OSError:
         return ""
     useful = [line.strip() for line in content if line.strip()]
-    return "\n".join(useful[-lines:])
+    important = [line for line in useful if _looks_like_cause(line)]
+    selected = [*important[-4:], *useful[-lines:]]
+    return "\n".join(dict.fromkeys(selected))
+
+
+def _looks_like_cause(line: str) -> bool:
+    lowered = line.lower()
+    return any(marker in lowered for marker in (
+        "runtimeerror:", "valueerror:", "outofmemoryerror:", "error:", "exception:",
+    ))

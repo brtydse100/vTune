@@ -1,5 +1,15 @@
 # Release notes
 
+## Unreleased
+
+- Added the optional `runtime` installation extra for vLLM and GuideLLM.
+- Added actionable errors when either runtime executable is unavailable.
+- Clarified the difference between experiment and inspection installations.
+- Reworked progress so each stage resolves on one line and baseline failures
+  show their complete diagnostic immediately.
+- Preserved root-cause exception lines in failure excerpts instead of showing
+  only the end of long tracebacks.
+
 ## v0.1.0a3 — Clearer benchmarks and trustworthy results
 
 _August 30, 2026_

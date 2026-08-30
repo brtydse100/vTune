@@ -33,6 +33,7 @@ nav:
   - Overview: index.md
   - Get started:
       - Quick start: getting-started.md
+      - Installation choices: installation.md
       - Configuration: configuration.md
       - Complete YAML: full-example.md
       - Benchmarks and datasets: benchmarking.md

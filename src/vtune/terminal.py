@@ -18,6 +18,7 @@ class TerminalLogger:
     def __init__(self, level: str) -> None:
         self._threshold = LOG_LEVELS.index(level)
         self._color = bool(getattr(sys.stdout, "isatty", lambda: False)())
+        self._inline = self._color and level != "DEBUG"
         self._stage_started: dict[str, float] = {}
 
     def debug(self, message: str) -> None:
@@ -41,22 +42,28 @@ class TerminalLogger:
             width = max(map(len, values))
             self.info("\n".join(f"{name:<{width}}  {value}" for name, value in values.items()))
 
+    def baseline(self) -> None:
+        self.info(f"\n{'─' * 18} Baseline experiment · fixed configuration {'─' * 18}")
+
     def stage(self, event: str, worker: str) -> None:
         label = _stage_label(worker)
         key = worker
         if event == "starting":
             self._stage_started[key] = monotonic()
-            self.info(f"{self._symbol('→')} {label}")
+            if self._inline:
+                print(f"{self._symbol('…')} {label}", end="", flush=True)
             return
         elapsed = monotonic() - self._stage_started.pop(key, monotonic())
         symbol = self._symbol("✓" if event == "completed" else "✗")
         method = self.info if event == "completed" else self.warning
+        if self._inline:
+            print("\r\033[2K", end="", flush=True)
         method(f"{symbol} {label} — {_elapsed(elapsed)}")
 
     def _symbol(self, value: str) -> str:
         if not self._color:
-            return {"→": ">", "✓": "OK", "✗": "ERROR"}[value]
-        colors = {"→": "36", "✓": "32", "✗": "31"}
+            return {"…": "...", "✓": "OK", "✗": "ERROR"}[value]
+        colors = {"…": "36", "✓": "32", "✗": "31"}
         return f"\033[{colors[value]}m{value}\033[0m"
 
     def _write(self, level: str, message: str) -> None:

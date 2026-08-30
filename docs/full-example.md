@@ -5,6 +5,10 @@ using the current schema; replace the model and dataset paths before running
 it. Lines beginning with `#` are explanations or alternatives that can be
 uncommented.
 
+Run experiments from Linux or WSL after installing `pip install
+"vtune[runtime]"`. Plain `pip install vtune` intentionally installs only the
+core configuration, artifact, and reporting functionality.
+
 vTune passes arbitrary `server` keys to vLLM and the contents of GuideLLM
 `profile`, `constraints`, and `data` objects to GuideLLM. New upstream options
 therefore work without being added to a vTune allowlist.

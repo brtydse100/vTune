@@ -22,6 +22,9 @@ classifiers = [
 ]
 dependencies = ["Optuna>=4.0,<5", "PyYAML>=6.0"]
 
+[project.optional-dependencies]
+runtime = ["vllm>=0.10", "guidellm>=0.7"]
+
 [project.urls]
 Repository = "https://github.com/brtydse100/vTune"
 Issues = "https://github.com/brtydse100/vTune/issues"

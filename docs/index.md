@@ -5,9 +5,12 @@ settings and workload; vTune handles process lifecycle, unique search trials,
 failures, persistence, and a decision-focused report.
 
 ```bash
-pip install vtune
+pip install "vtune[runtime]"
 vtune --config experiment.yaml
 ```
+
+Use plain `pip install vtune` for configuration and report inspection without
+local vLLM execution. [Understand the two installation choices](installation.md).
 
 ## What vTune gives you
 
