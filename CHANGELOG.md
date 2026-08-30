@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.1.0a5 — Native benchmarks and explicit parallel trials
+
+_August 31, 2026_
+
 ### vLLM Bench Serve
 
 - Added `benchmark.engine: vllm` as an alternative to the default GuideLLM
