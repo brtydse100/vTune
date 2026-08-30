@@ -15,3 +15,4 @@ class ReportContext:
     source_run_id: str | None = None
     sources: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
     benchmark_rankings: Mapping[str, tuple[TrialScore, ...]] = field(default_factory=dict)
+    execution_mode: str = "sequential"

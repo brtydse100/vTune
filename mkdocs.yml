@@ -38,6 +38,7 @@ nav:
       - Complete YAML: full-example.md
       - Benchmarks and datasets: benchmarking.md
       - Search and scoring: search-and-scoring.md
+      - Parallel trials: parallel-trials.md
   - Use vTune:
       - CLI reference: cli.md
       - Reports: reports.md

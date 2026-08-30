@@ -46,14 +46,20 @@ def render_dashboard(
                else "Request counts unavailable" if best else "No eligible result")
     source = (f"<p>Retry source: <code>{escape(context.source_run_id)}</code></p>"
               if context.source_run_id else "")
+    contention = ("<p class='note'><strong>Parallel measurement mode:</strong> when several "
+                  "workers are active, tuned trials may contend for shared host resources. "
+                  "The baseline ran alone; validate finalists sequentially before production "
+                  "decisions.</p>"
+                  if context.execution_mode == "local_parallel" else "")
     return f"""<!doctype html><html><head><meta charset='utf-8'>
 <meta name='viewport' content='width=device-width,initial-scale=1'>
 <title>vTune · {escape(context.run_id)}</title><style>{_css()}</style></head><body>
 <header><div><p class='eyebrow'>vTune decision report</p><h1>{escape(context.run_id)}</h1>
 <p>Maximize <code>{escape(metric)}</code> · Started {escape(context.started_at or 'unknown')}
-· Completed {escape(context.completed_at or 'unknown')}</p>{source}</div>
+· Completed {escape(context.completed_at or 'unknown')} · Mode {escape(context.execution_mode)}
+</p>{source}</div>
 <span class='status'>{escape(context.status)}</span></header>
-<main><section class='cards'>{cards}</section>
+<main>{contention}<section class='cards'>{cards}</section>
 <section><h2>Recommendation</h2>
 <p><strong>{escape(best.trial_id) if best else 'No eligible trial'}</strong> was selected by lowest request
 error percentage, then lowest error count, then highest <code>{escape(metric)}</code>.

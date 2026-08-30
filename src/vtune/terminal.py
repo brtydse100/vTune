@@ -36,8 +36,9 @@ class TerminalLogger:
         self.info("\n".join(f"{name:<{width}}  {value}" for name, value in values.items()))
 
     def trial(self, position: int, total: int, trial_id: str,
-              values: dict[str, object]) -> None:
-        self.info(f"\n{'─' * 20} Trial {position} of {total} · {trial_id} {'─' * 20}")
+              values: dict[str, object], worker: str | None = None) -> None:
+        owner = f" · {worker}" if worker else ""
+        self.info(f"\n{'─' * 20} Trial {position} of {total} · {trial_id}{owner} {'─' * 20}")
         if values:
             width = max(map(len, values))
             self.info("\n".join(f"{name:<{width}}  {value}" for name, value in values.items()))
@@ -45,20 +46,21 @@ class TerminalLogger:
     def baseline(self) -> None:
         self.info(f"\n{'─' * 18} Baseline experiment · fixed configuration {'─' * 18}")
 
-    def stage(self, event: str, worker: str) -> None:
+    def stage(self, event: str, worker: str, scope: str | None = None) -> None:
         label = _stage_label(worker)
-        key = worker
+        prefix = f"{scope} " if scope else ""
+        key = f"{scope}:{worker}" if scope else worker
         if event == "starting":
             self._stage_started[key] = monotonic()
-            if self._inline:
+            if self._inline and scope is None:
                 print(f"{self._symbol('…')} {label}", end="", flush=True)
             return
         elapsed = monotonic() - self._stage_started.pop(key, monotonic())
         symbol = self._symbol("✓" if event == "completed" else "✗")
         method = self.info if event == "completed" else self.warning
-        if self._inline:
+        if self._inline and scope is None:
             print("\r\033[2K", end="", flush=True)
-        method(f"{symbol} {label} — {_elapsed(elapsed)}")
+        method(f"{prefix}{symbol} {label} — {_elapsed(elapsed)}")
 
     def _symbol(self, value: str) -> str:
         if not self._color:

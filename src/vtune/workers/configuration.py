@@ -16,6 +16,8 @@ def build_process_spec(
     config: VTuneConfig,
     selected_args: Mapping[str, object] | None = None,
     selected_env: Mapping[str, object] | None = None,
+    runtime_args: Mapping[str, object] | None = None,
+    runtime_env: Mapping[str, object] | None = None,
 ) -> ProcessSpec:
     """Resolve fixed and selected values into a shell-free process spec."""
     chosen_args = dict(selected_args or {})
@@ -27,12 +29,14 @@ def build_process_spec(
                  **{name: value for name, value in config.server.items()
                     if name != "model"}}
     arguments.update(chosen_args)
+    arguments.update(runtime_args or {})
     argv = ["vllm", "serve", model_path(config)]
     for name in sorted(arguments):
         argv.extend(_render_argument(name, arguments[name]))
 
     environment = _string_environment(config.env)
     environment.update(_string_environment(chosen_env))
+    environment.update(_string_environment(runtime_env or {}))
     environment["VLLM_LOGGING_LEVEL"] = logging_level(config)
     return ProcessSpec(argv=tuple(argv), env=environment)
 
@@ -44,12 +48,15 @@ class ConfigurationBuilderWorker:
     config: VTuneConfig
     selected_args: Mapping[str, object] = field(default_factory=dict)
     selected_env: Mapping[str, object] = field(default_factory=dict)
+    runtime_args: Mapping[str, object] = field(default_factory=dict)
+    runtime_env: Mapping[str, object] = field(default_factory=dict)
     name: str = "configuration_builder"
 
     async def execute(self, context: TrialContext) -> WorkerResult[None]:
         try:
             process_spec = build_process_spec(
-                self.config, self.selected_args, self.selected_env
+                self.config, self.selected_args, self.selected_env,
+                self.runtime_args, self.runtime_env,
             )
         except (TypeError, ValueError) as error:
             return WorkerResult.failed(

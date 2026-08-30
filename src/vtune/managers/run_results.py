@@ -12,8 +12,9 @@ from vtune.reproduction.redaction import redact_environment, redact_values
 
 
 class RunResultsManager:
-    def __init__(self, output_path: Path) -> None:
+    def __init__(self, output_path: Path, execution_mode: str = "sequential") -> None:
         self._output_path = Path(output_path)
+        self._execution_mode = execution_mode
 
     def save(
         self, run_id: str, metric: str, trials: tuple[TrialReport, ...],
@@ -27,6 +28,7 @@ class RunResultsManager:
         links = sources or {}
         document = {
             "schema_version": 1, "run_id": run_id, "maximize": metric,
+            "execution_mode": self._execution_mode,
             "status": status, "started_at": started_at, "completed_at": completed_at,
             "trial_counts": _status_counts(trials),
             "trials": [_trial_document(item, links.get(item.trial_id)) for item in trials],
@@ -104,6 +106,12 @@ def _trial_document(
                    "retryable": report.failure.retryable}
     document = {"trial_id": report.trial_id, "status": report.status.value,
                 "failure": failure, "benchmark_count": len(report.benchmarks)}
+    assignment = {name.removeprefix("execution_"): report.artifacts[name]
+                  for name in ("execution_mode", "execution_worker",
+                               "execution_devices", "execution_port")
+                  if name in report.artifacts}
+    if assignment:
+        document["execution"] = assignment
     if source is not None:
         document["source"] = dict(source)
     return document

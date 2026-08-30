@@ -275,6 +275,13 @@ Requirements:
 
 ### Parallel local instances
 
+Status: the first explicit local implementation is available on `main`.
+It supports exclusive declared GPU workers, deterministic ports, bounded
+concurrency, coordinator-owned persistence, failure isolation, cancellation,
+and resolved assignment metadata. Automatic allocation, sharing,
+heterogeneous comparison, and sequential finalist validation remain future
+work.
+
 Allow several independent vLLM instances and their benchmark processes to run
 at the same time on one host. Each active instance executes a different trial;
 this is separate from tensor parallelism inside one vLLM instance.

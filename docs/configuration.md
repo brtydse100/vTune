@@ -91,6 +91,33 @@ tune_env:
 Environment values are converted to strings before process launch. Quoting
 values such as `"0"` and `"1"` avoids YAML treating them as numbers.
 
+## Parallel local trials
+
+Sequential execution is the default. To run separate vLLM instances at the
+same time, configure explicit GPU workers and a port range:
+
+```yaml
+execution:
+  mode: local_parallel
+  max_parallel_trials: 2
+  gpu_allocation:
+    workers:
+      - name: worker-0
+        devices: [0, 1]
+      - name: worker-1
+        devices: [2, 3]
+  ports:
+    min: 8100
+    max: 8199
+```
+
+GPU sets must not overlap. vTune assigns `CUDA_VISIBLE_DEVICES` and one stable
+port to each worker, so do not configure either yourself in parallel mode.
+`max_parallel_trials` must equal the declared worker count, and every trial's
+`tensor-parallel-size` must fit at least one worker. The baseline runs alone
+first; tuned trials then run concurrently. See
+[parallel trials](parallel-trials.md) for scheduling and measurement rules.
+
 ## Benchmark runs
 
 Each entry under `benchmark.runs` is a GuideLLM invocation. A single trial may

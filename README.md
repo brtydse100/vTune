@@ -142,6 +142,11 @@ Random and TPE runs never execute the same resolved configuration twice. If
 `optimization.trials` exceeds the unique search space, vTune warns and runs
 every unique configuration once.
 
+Multiple independent trials can run on explicitly assigned, non-overlapping
+GPU sets and ports. Sequential execution remains the default. See
+[parallel trials](https://brtydse100.github.io/vTune/parallel-trials/) for the
+YAML and measurement caveats.
+
 ## Product documents
 
 - [First MVP specification](docs/MVP_SPEC.md)

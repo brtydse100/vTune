@@ -1,5 +1,17 @@
 # Release notes
 
+## Unreleased
+
+### Parallel trials
+
+- Added opt-in local parallel execution with explicit, exclusive GPU workers
+  and deterministic per-worker ports.
+- Kept search suggestions, Optuna updates, ranking, and persistence under one
+  coordinator while trial process groups execute concurrently.
+- Recorded resolved worker, device, port, and execution mode in artifacts and
+  labeled parallel reports with a hardware-contention warning.
+- Added failure isolation and cancellation cleanup across active workers.
+
 ## v0.1.0a4 — Easier setup and actionable diagnostics
 
 _August 30, 2026_
