@@ -27,6 +27,7 @@ which vllm
 which guidellm
 vtune --help
 vllm --help
+vllm bench serve --help
 guidellm --help
 ```
 
@@ -45,8 +46,9 @@ python -m pip install vtune
 ```
 
 This is useful for configuration validation and stored-result/report work. It
-cannot run an experiment unless `vllm` and `guidellm` are already available on
-`PATH`.
+cannot run an experiment unless `vllm` and the selected benchmark executable
+are already on `PATH`. GuideLLM is needed only for `engine: guidellm`; vLLM
+Bench Serve is included with vLLM.
 
 ## Windows versus WSL
 

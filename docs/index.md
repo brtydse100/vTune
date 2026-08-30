@@ -15,7 +15,7 @@ local vLLM execution. [Understand the two installation choices](installation.md)
 ## What vTune gives you
 
 - A baseline and Grid, Random, or TPE exploration of your chosen settings.
-- One or more GuideLLM workload profiles against each server configuration.
+- One or more GuideLLM or vLLM Bench Serve workloads per server configuration.
 - Immutable trial artifacts, concise terminal progress, and detailed logs.
 - A self-contained HTML report showing the best configuration and observed
   parameter effects.

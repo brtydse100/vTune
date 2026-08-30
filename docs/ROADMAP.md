@@ -107,7 +107,8 @@ separates the new experiment identity.
 
 ### vLLM Bench Serve adapter
 
-Implement the same adapter contract as GuideLLM:
+Implemented in the development version using the same adapter contract as
+GuideLLM:
 
 - Configuration validation.
 - Command construction without shell interpolation.
@@ -115,7 +116,10 @@ Implement the same adapter contract as GuideLLM:
 - Raw output preservation.
 - Metric normalization with explicit units.
 - Backend version capture.
-- Capability declaration for unsupported scenario features.
+- Forward-compatible flat argument pass-through.
+
+Future work: capability discovery, schema-drift fixtures across vLLM versions,
+and comparability studies between equivalent GuideLLM and vLLM workloads.
 
 Reports must show backend provenance. Metrics from different backends should
 not be treated as directly interchangeable unless their definitions and

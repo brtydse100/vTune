@@ -73,6 +73,7 @@ tune_env:
   #   step: 1
 
 benchmark:
+  engine: guidellm  # guidellm (default) or vllm
   repeats: 3  # Default: 1. vTune uses the median across repeated runs.
   runs:
     # Each named run is one GuideLLM invocation against the same server.
@@ -205,15 +206,43 @@ logging:
   level: INFO  # DEBUG, INFO, WARNING, ERROR, or CRITICAL. Default: INFO.
 ```
 
+## vLLM Bench Serve alternative
+
+Replace the `benchmark` section above with this section to use vLLM's native
+benchmark. vTune supplies the model, server address, and result paths:
+
+```yaml
+benchmark:
+  engine: vllm
+  repeats: 3
+  runs:
+    - name: random-throughput
+      args:
+        backend: vllm
+        dataset-name: random
+        random-input-len: 512
+        random-output-len: 128
+        random-prefix-len: 0
+        num-prompts: 1000
+        request-rate: inf
+        max-concurrency: 32
+        percentile-metrics: ttft,tpot,itl,e2el
+        metric-percentiles: 50,90,95,99
+        ignore-eos: true
+```
+
+The [benchmark guide](benchmarking.md) includes ShareGPT, Hugging Face,
+custom, and prefix-repetition examples plus arbitrary argument rules.
+
 ## Important boundaries
 
-- Only one dataset is allowed in each benchmark run. Use multiple named runs
-  for several workloads; multi-dataset runs are a roadmap item.
+- A GuideLLM run allows one dataset item. Use multiple named runs for several
+  workloads; multi-dataset GuideLLM runs are a roadmap item.
 - There is no separate warm-up switch in vTune. If the installed GuideLLM
   version exposes a warm-up field for a profile, place it inside that profile.
 - `analysis` is reserved internally and currently has no user-facing options.
-- Console progress is shown at the selected logging level. GuideLLM JSON and
-  `benchmark.log` are always preserved for scoring and debugging.
+- Console progress is shown at the selected logging level. Raw benchmark JSON
+  and `benchmark.log` are always preserved for scoring and debugging.
 - Random and TPE trial requests larger than the unique search space are capped
   with a warning. Duplicate resolved configurations are never executed.
 

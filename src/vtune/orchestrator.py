@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
 
-from vtune.benchmarks.guidellm import configured_repeats, configured_runs
+from vtune.benchmarks.configuration import configured_repeats, configured_runs
 from vtune.benchmarks.timing import timeout_for_run
 from vtune.config.models import VTuneConfig
 from vtune.config.runtime import (

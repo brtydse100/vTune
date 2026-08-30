@@ -6,15 +6,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 import json
 from pathlib import Path
-import re
 
 from vtune.config.models import VTuneConfig
 from vtune.config.runtime import model_path
 from vtune.domain.benchmark import BenchmarkResult, WorkloadResult
 from vtune.benchmarks.timing import normalize_durations
-
-_RUN_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
-
 
 @dataclass(frozen=True, slots=True)
 class GuideLLMPlan:
@@ -26,40 +22,13 @@ class GuideLLMPlan:
 
 
 def configured_runs(config: VTuneConfig) -> tuple[Mapping[str, object], ...]:
-    unknown = set(config.benchmark) - {"runs", "repeats"}
-    if unknown:
-        raise ValueError(f"Unsupported benchmark setting(s): {', '.join(sorted(unknown))}")
-    runs = config.benchmark.get("runs")
-    if not isinstance(runs, list) or not runs:
-        raise ValueError("'benchmark.runs' must be a non-empty list")
-    validated: list[Mapping[str, object]] = []
-    names: set[str] = set()
-    for index, value in enumerate(runs):
-        run = _mapping(value, f"run {index}")
-        unknown_run = set(run) - {
-            "name", "request_format", "profile", "constraints", "data"
-        }
-        if unknown_run:
-            options = ", ".join(sorted(unknown_run))
-            raise ValueError(f"Unsupported setting(s) in benchmark run {index}: {options}")
-        name = run.get("name")
-        if not isinstance(name, str) or not _RUN_NAME.fullmatch(name):
-            raise ValueError("benchmark run names must use letters, numbers, '_' or '-'")
-        if name in names:
-            raise ValueError(f"duplicate benchmark run name: {name}")
-        names.add(name)
-        data = run.get("data")
-        if not isinstance(data, list) or len(data) != 1:
-            raise ValueError(f"benchmark run '{name}' must configure exactly one dataset")
-        validated.append(run)
-    return tuple(validated)
+    from vtune.benchmarks.configuration import configured_runs as validate
+    return validate(config)
 
 
 def configured_repeats(config: VTuneConfig) -> int:
-    value = config.benchmark.get("repeats", 1)
-    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-        raise ValueError("benchmark.repeats must be a positive integer")
-    return value
+    from vtune.benchmarks.configuration import configured_repeats as validate
+    return validate(config)
 
 
 def build_plan(

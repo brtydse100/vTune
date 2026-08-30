@@ -7,7 +7,7 @@ vtune --config experiment.yaml
 vtune -c experiment.yaml --verbose
 ```
 
-`--verbose` streams vLLM and GuideLLM output and overrides the YAML logging
+`--verbose` streams vLLM server and selected benchmark output and overrides the YAML logging
 level with `DEBUG` for that invocation.
 
 ## Retry selected trials

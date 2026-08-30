@@ -17,9 +17,9 @@ CLI → YAML loader → Orchestrator → SearchSession
                               ├→ ConfigurationBuilderWorker
                               ├→ VLLMRunnerWorker
                               ├→ ReadinessWorker
-                              └→ GuideLLMBenchmarkWorker(s)
+                              └→ BenchmarkWorker(s)
                                       │
-                                      └→ GuideLLM JSON
+                                      └→ GuideLLM or vLLM Bench JSON
 
 Trial results → RunAccumulator → result.json / CSV / HTML / Optuna SQLite
 ```
@@ -54,8 +54,8 @@ the orchestrator composes them. External formats are normalized at the edge.
 - Add a worker by implementing the small `Worker` protocol in `workers/base.py`.
 - Add a search strategy by implementing `SearchSession` and selecting it in
   `search/factory.py`.
-- Add a benchmark backend beside `GuideLLMBenchmarkWorker`, keeping its command
-  builder and parser in `benchmarks/`.
+- Benchmark engines keep command builders and parsers in `benchmarks/`, with
+  lifecycle workers selected in `workers/factory.py`.
 - Add report sections in `reporting/` without changing execution workers.
 - Add orchestration managers only when they own policy shared by multiple
   workers; do not rename a composed trial worker to a manager solely because it
@@ -63,6 +63,6 @@ the orchestrator composes them. External formats are normalized at the edge.
 
 ## Current boundary
 
-The MVP intentionally runs one trial at a time. Parallel local instances and
-distributed workers require explicit resource allocation, port ownership, and
-coordinator semantics and remain roadmap work.
+Sequential execution is the default. Local parallel execution requires
+explicit non-overlapping GPU workers and deterministic ports. Automatic GPU
+allocation, shared GPUs, and distributed workers remain roadmap work.

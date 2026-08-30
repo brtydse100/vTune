@@ -64,6 +64,7 @@ tune:
   max-num-seqs:
     values: [8, 16]
 benchmark:
+  engine: guidellm  # Default. Use vllm for `vllm bench serve`.
   runs:
     - name: throughput
       profile:
@@ -101,7 +102,26 @@ examples. The [complete YAML](https://brtydse100.github.io/vTune/full-example/)
 and [benchmark guide](https://brtydse100.github.io/vTune/benchmarking/) show
 every supported control with copyable examples.
 
-Terminal output is concise by default. To stream vLLM and GuideLLM logs:
+To use vLLM's native benchmark, set `benchmark.engine: vllm`. Its `args`
+map directly to `vllm bench serve` flags; vTune supplies the model, server
+address, and JSON output path:
+
+```yaml
+benchmark:
+  engine: vllm
+  runs:
+    - name: throughput
+      args:
+        backend: vllm
+        dataset-name: random
+        random-input-len: 32
+        random-output-len: 16
+        num-prompts: 100
+        request-rate: inf
+        max-concurrency: 16
+```
+
+Terminal output is concise by default. To stream server and benchmark logs:
 
 ```bash
 vtune --config experiment.yaml --verbose

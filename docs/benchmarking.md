@@ -1,8 +1,92 @@
 # Benchmark configuration
 
-Each `benchmark.runs` entry becomes one GuideLLM invocation against the same
-vLLM trial. It accepts `name`, `request_format`, `profile`, `constraints`, and
-exactly one `data` item. vTune always saves GuideLLM JSON and `benchmark.log`.
+Set `benchmark.engine` to `guidellm` (the default) or `vllm`. Each run invokes
+the selected engine against the same vLLM trial. vTune saves raw JSON and
+`benchmark.log`, then normalizes the result for scoring and reporting.
+
+## vLLM Bench Serve
+
+Use `args` exactly as flags following `vllm bench serve`:
+
+```yaml
+benchmark:
+  engine: vllm
+  repeats: 2
+  runs:
+    - name: random-throughput
+      args:
+        backend: vllm
+        dataset-name: random
+        random-input-len: 512
+        random-output-len: 128
+        random-prefix-len: 0
+        num-prompts: 1000
+        request-rate: inf
+        max-concurrency: 32
+        percentile-metrics: ttft,tpot,itl,e2el
+        metric-percentiles: 50,90,95,99
+        ignore-eos: true
+```
+
+vTune owns `model`, `host`, `port`, `base-url`, `save-result`, `append-result`,
+`result-dir`, and `result-filename`; do not put them under `args`. Underscores
+and hyphens are both accepted in keys. `true` adds a flag and `false` omits it.
+A list repeats its flag for every item. Other scalar values are passed as
+strings, so new vLLM options do not require a vTune release.
+
+Common dataset forms:
+
+```yaml
+# ShareGPT JSON
+args:
+  backend: vllm
+  dataset-name: sharegpt
+  dataset-path: /benchmarks/ShareGPT_V3.json
+  num-prompts: 500
+
+# Hugging Face dataset
+args:
+  backend: vllm-chat
+  dataset-name: hf
+  dataset-path: organization/dataset
+  hf-split: test
+  num-prompts: 500
+
+# Custom JSON or JSONL supported by the installed vLLM
+args:
+  backend: vllm
+  dataset-name: custom
+  dataset-path: /benchmarks/requests.jsonl
+  custom-output-len: 128
+  num-prompts: 500
+
+# Prefix-repetition workload
+args:
+  backend: vllm
+  dataset-name: prefix_repetition
+  prefix-repetition-prefix-len: 1024
+  prefix-repetition-suffix-len: 128
+  prefix-repetition-num-prefixes: 16
+  prefix-repetition-output-len: 64
+  num-prompts: 512
+```
+
+Other upstream datasets include `burstgpt`, `sonnet`, `random-mm`,
+`random-rerank`, `custom_audio`, `custom_image`, `spec_bench`, `speed_bench`,
+and `timed_trace`. Their arguments can change with vLLM; use the
+[official reference](https://docs.vllm.ai/en/latest/cli/bench/serve/) and place
+its flags under `args`.
+
+vTune aliases `output_throughput`, `request_throughput`, and
+`total_token_throughput` to `output_tokens_per_second`,
+`requests_per_second`, and `total_tokens_per_second`. It retains raw fields and
+latency percentiles such as `p99_ttft_ms`. Completed, failed, and missing
+requests use the same error-aware ranking as GuideLLM.
+
+## GuideLLM
+
+A GuideLLM run accepts `name`, `request_format`, `profile`, `constraints`, and
+exactly one `data` item.
 
 ## Profiles
 

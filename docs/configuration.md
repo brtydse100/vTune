@@ -120,12 +120,14 @@ first; tuned trials then run concurrently. See
 
 ## Benchmark runs
 
-Each entry under `benchmark.runs` is a GuideLLM invocation. A single trial may
+`benchmark.engine` selects `guidellm` (default) or `vllm`. A single trial may
 contain several benchmark runs, but they all evaluate the same running server
-configuration. vTune always preserves normalized JSON and `benchmark.log`.
+configuration. GuideLLM runs use `profile`, `constraints`, and `data`; vLLM
+Bench Serve runs use `args`. vTune preserves raw JSON and `benchmark.log`, then
+exposes normalized metrics to scoring and reports.
 
 Every supported profile, constraint, request format, and dataset form has a
-copyable example in [benchmark configuration](benchmarking.md). See the
+copyable examples in [benchmark configuration](benchmarking.md). See the
 [complete YAML](full-example.md) for all vTune sections together.
 
 ## Logging and timeouts
@@ -140,5 +142,6 @@ timeouts:
 
 Logging levels match GuideLLM: `DEBUG`, `INFO`, `WARNING`, `ERROR`, and
 `CRITICAL`. Both timeouts accept seconds or values such as `30s`, `15m`, and
-`1h`. Omit `timeouts.benchmark` to derive it from the GuideLLM constraint plus
-a safety margin. The literal value `auto` is not accepted.
+`1h`. For GuideLLM, omitting `timeouts.benchmark` derives it from the duration
+constraint plus a safety margin. vLLM Bench Serve uses a 180-second default
+when no explicit timeout is provided. The literal value `auto` is not accepted.

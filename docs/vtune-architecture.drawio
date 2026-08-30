@@ -61,7 +61,7 @@
         <mxCell id="vllmAdapter" value="Local vLLM adapter&#xa;owned subprocess + health endpoint" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#546E7A;strokeWidth=2;fontSize=13;" vertex="1" parent="1">
           <mxGeometry x="465" y="1045" width="250" height="70" as="geometry"/>
         </mxCell>
-        <mxCell id="benchmarkAdapter" value="Benchmark adapter&#xa;GuideLLM now · other backends later" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#546E7A;strokeWidth=2;fontSize=13;" vertex="1" parent="1">
+        <mxCell id="benchmarkAdapter" value="Benchmark adapters&#xa;GuideLLM · vLLM Bench Serve" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#546E7A;strokeWidth=2;fontSize=13;" vertex="1" parent="1">
           <mxGeometry x="940" y="1045" width="270" height="70" as="geometry"/>
         </mxCell>
         <mxCell id="storage" value="SQLite + artifacts&#xa;single authoritative result path" style="rounded=1;whiteSpace=wrap;html=1;shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=2;fontSize=14;fontStyle=1;" vertex="1" parent="1">

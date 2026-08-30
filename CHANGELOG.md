@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### vLLM Bench Serve
+
+- Added `benchmark.engine: vllm` as an alternative to the default GuideLLM
+  backend, with forward-compatible `vllm bench serve` argument pass-through.
+- Added canonical throughput aliases, request-failure accounting, raw JSON and
+  log preservation, exact command capture, retries, repeats, and timeouts.
+- Added random, ShareGPT, Hugging Face, custom, and prefix-repetition examples.
+
 ### Parallel trials
 
 - Added opt-in local parallel execution with explicit, exclusive GPU workers

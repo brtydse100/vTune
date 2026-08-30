@@ -8,6 +8,10 @@ Verified combinations:
 | --- | --- | --- |
 | 0.28.0 | 0.7.3 | WSL2, RTX 3080 |
 
+Both GuideLLM 0.7.3 and `vllm bench serve` from vLLM 0.28.0 are supported.
+Workload arguments are passed through, so consult the documentation for the
+installed engine version when adopting newer options.
+
 On the verified WSL2 host, vLLM 0.28.0 needed these server environment values:
 
 ```yaml
