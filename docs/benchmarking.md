@@ -15,7 +15,6 @@ benchmark:
   runs:
     - name: random-throughput
       args:
-        backend: vllm
         dataset-name: random
         random-input-len: 512
         random-output-len: 128
@@ -28,8 +27,9 @@ benchmark:
         ignore-eos: true
 ```
 
-vTune owns `model`, `host`, `port`, `base-url`, `save-result`, `append-result`,
-`result-dir`, and `result-filename`; do not put them under `args`. Underscores
+vTune automatically uses `--backend vllm` and also owns `model`, `host`,
+`port`, `base-url`, `save-result`, `append-result`, `result-dir`, and
+`result-filename`; do not put them under `args`. Underscores
 and hyphens are both accepted in keys. `true` adds a flag and `false` omits it.
 A list repeats its flag for every item. Other scalar values are passed as
 strings, so new vLLM options do not require a vTune release.
@@ -39,14 +39,12 @@ Common dataset forms:
 ```yaml
 # ShareGPT JSON
 args:
-  backend: vllm
   dataset-name: sharegpt
   dataset-path: /benchmarks/ShareGPT_V3.json
   num-prompts: 500
 
 # Hugging Face dataset
 args:
-  backend: vllm-chat
   dataset-name: hf
   dataset-path: organization/dataset
   hf-split: test
@@ -54,7 +52,6 @@ args:
 
 # Custom JSON or JSONL supported by the installed vLLM
 args:
-  backend: vllm
   dataset-name: custom
   dataset-path: /benchmarks/requests.jsonl
   custom-output-len: 128
@@ -62,7 +59,6 @@ args:
 
 # Prefix-repetition workload
 args:
-  backend: vllm
   dataset-name: prefix_repetition
   prefix-repetition-prefix-len: 1024
   prefix-repetition-suffix-len: 128

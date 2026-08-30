@@ -112,7 +112,6 @@ benchmark:
   runs:
     - name: throughput
       args:
-        backend: vllm
         dataset-name: random
         random-input-len: 32
         random-output-len: 16

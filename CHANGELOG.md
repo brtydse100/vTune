@@ -6,6 +6,7 @@
 
 - Added `benchmark.engine: vllm` as an alternative to the default GuideLLM
   backend, with forward-compatible `vllm bench serve` argument pass-through.
+- Made `--backend vllm` automatic instead of requiring it in every run.
 - Added canonical throughput aliases, request-failure accounting, raw JSON and
   log preservation, exact command capture, retries, repeats, and timeouts.
 - Added random, ShareGPT, Hugging Face, custom, and prefix-repetition examples.

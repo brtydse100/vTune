@@ -13,7 +13,7 @@ from vtune.config.models import VTuneConfig
 from vtune.config.runtime import model_path
 from vtune.domain.benchmark import BenchmarkResult, WorkloadResult
 
-_RESERVED = {"model", "host", "port", "base-url", "save-result", "append-result",
+_RESERVED = {"backend", "model", "host", "port", "base-url", "save-result", "append-result",
              "result-dir", "result-filename"}
 
 
@@ -36,7 +36,8 @@ def build_plan(config: VTuneConfig, run: Mapping[str, object], endpoint: str,
     parsed = urlsplit(endpoint)
     directory = Path(artifacts) / name
     result = directory / "results.json"
-    argv = ["vllm", "bench", "serve", "--model", model_path(config),
+    argv = ["vllm", "bench", "serve", "--backend", "vllm",
+            "--model", model_path(config),
             "--host", parsed.hostname or "127.0.0.1", "--port", str(parsed.port or 8000)]
     for key, value in normalized.items():
         argv.extend(_argument(key, value))
