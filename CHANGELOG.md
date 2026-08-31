@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## v0.1.0a7 â€” Correctness and trust
+## v0.1.0a7 — Correctness and trust
 
 - Persisted typed per-trial execution assignments separately from artifacts.
 - Stopped deriving median and P99 values when a backend supplied only an average.
