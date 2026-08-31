@@ -2,9 +2,11 @@
 
 ## Unreleased
 
-- Fixed Python 3.11 imports on the source branch by using a dataclass default
-  factory for `TrialReport.execution`. The already-published a7 artifacts are
-  immutable; the fix will ship in the next package release.
+## v0.1.0a8 — Python 3.11 compatibility
+
+- Fixed `TrialReport.execution` to use a dataclass default factory, restoring
+  Python 3.11 package imports. The public Python 3.11 and 3.12 package checks
+  now pass.
 
 ## v0.1.0a7 — Correctness and trust
 
