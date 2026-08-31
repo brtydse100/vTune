@@ -7,6 +7,7 @@ venv/
 # Packaging output
 build/
 dist/
+site/
 *.egg-info/
 
 # vTune runtime output

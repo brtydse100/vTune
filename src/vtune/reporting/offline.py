@@ -15,7 +15,10 @@ from vtune.managers.scoring import TrialScore
 from vtune.reporting.context import ReportContext
 from vtune.reporting.reporter import Reporter
 from vtune.reporting.analysis import default_metrics
-from vtune.reporting.validation import execution as _execution
+from vtune.reporting.validation import (
+    execution as _execution, mapping as _mapping, object_list as _objects,
+    optional_text as _optional_text, require as _require, text as _text,
+)
 from vtune.reproduction.reader import load_manifest
 from vtune.lifecycle.integrity import artifact_warnings
 
@@ -89,10 +92,11 @@ def _load_trial(run: Path, summary: Mapping[str, object], warnings: list[str]) -
     benchmarks = document.get("benchmarks", [])
     artifacts = document.get("artifacts", {})
     execution = _execution(document.get("execution"), trial_id)
-    summary_execution = summary.get("execution")
-    if summary_execution is not None:
-        _require(execution == _execution(summary_execution, trial_id),
-                 f"trial execution mismatch: {trial_id}")
+    for source, value in (("run summary", summary.get("execution")),
+                          ("manifest", manifest.get("execution"))):
+        if value is not None:
+            _require(execution == _execution(value, trial_id),
+                     f"trial execution mismatch with {source}: {trial_id}")
     _require(isinstance(benchmarks, list), f"trial {trial_id} has invalid benchmarks")
     _require(isinstance(artifacts, Mapping), f"trial {trial_id} has invalid artifacts")
     attempts_raw = document.get("attempts", [])
@@ -151,11 +155,15 @@ def _failure(value: object) -> Failure | None:
     _require(isinstance(value, Mapping), "stored failure is invalid")
     return Failure(_text(value, "code"), _text(value, "message"),
                    bool(value.get("retryable", False)))
+
+
 def _status(value: object, owner: str) -> WorkerStatus:
     try:
         return WorkerStatus(value)
     except ValueError as error:
         raise ValueError(f"{owner} has invalid status: {value}") from error
+
+
 def _read_object(path: Path, label: str) -> dict[str, object]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -163,31 +171,9 @@ def _read_object(path: Path, label: str) -> dict[str, object]:
         raise ValueError(f"Cannot read {label} '{path}': {error}") from error
     _require(isinstance(value, dict), f"{label} must be a JSON object")
     return value
-def _objects(document: Mapping[str, object], name: str) -> list[Mapping[str, object]]:
-    value = document.get(name)
-    _require(isinstance(value, list) and all(isinstance(item, Mapping) for item in value),
-             f"run result has invalid {name}")
-    return value
-def _mapping(document: Mapping[str, object], name: str) -> Mapping[str, object]:
-    value = document.get(name, {})
-    _require(isinstance(value, Mapping), f"stored {name} must be an object")
-    return value
+
+
 def _sources(document: Mapping[str, object]) -> dict[str, Mapping[str, str]]:
     return {str(item["trial_id"]): {str(k): str(v) for k, v in item["source"].items()}
             for item in _objects(document, "trials")
             if isinstance(item.get("source"), Mapping)}
-
-
-def _text(document: Mapping[str, object], name: str) -> str:
-    value = document.get(name)
-    _require(isinstance(value, str) and bool(value), f"stored {name} must be text")
-    return value
-
-
-def _optional_text(value: object) -> str | None:
-    return value if isinstance(value, str) else None
-
-
-def _require(condition: object, message: str) -> None:
-    if not condition:
-        raise ValueError(message)
