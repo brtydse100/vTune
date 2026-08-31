@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.1.0a6 — Trustworthy progress and GuideLLM completion
+
+_August 31, 2026_
+
 ### Progress and diagnostics
 
 - Added timestamped live terminal stages, TTY loading animation, trial progress,
@@ -16,7 +20,14 @@
   scoring/importance explanations, run duration, and persisted metric summaries.
 - Added optional secret-safe OpenAI-compatible report summaries configured with
   `analysis.llm_summary` and an environment-variable API key.
-- Expanded CLI help and documented asynchronous GuideLLM request profiles.
+- Expanded CLI help and documented GuideLLM throughput completion behavior.
+
+### GuideLLM reliability
+
+- Removed vTune's interactive-console override so GuideLLM retains its normal
+  request-draining lifecycle.
+- Mark a benchmark as failed with a targeted diagnostic when GuideLLM exits
+  without any completed requests.
 
 ## v0.1.0a5 — Native benchmarks and explicit parallel trials
 
