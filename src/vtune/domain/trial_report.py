@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Mapping
 
@@ -27,7 +27,7 @@ class TrialReport:
     artifacts: Mapping[str, str]
     attempts: tuple[AttemptReport, ...] = ()
     failure: Failure | None = None
-    execution: Mapping[str, object] = MappingProxyType({})
+    execution: Mapping[str, object] = field(default_factory=lambda: MappingProxyType({}))
 
     def __post_init__(self) -> None:
         if self.schema_version < 1 or not self.trial_id.strip():
