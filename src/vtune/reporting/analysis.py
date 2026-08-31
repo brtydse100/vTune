@@ -111,7 +111,7 @@ def _summary(name: str, value: object) -> dict[str, float]:
             return {"median": number}
         if name.startswith("mean_"):
             return {"average": number}
-        return {"average": number, "median": number, "p99": number}
+        return {"average": number}
     if not isinstance(value, Mapping):
         return {}
     observed = value.get("successful")
@@ -120,9 +120,6 @@ def _summary(name: str, value: object) -> dict[str, float]:
               ("median", "median"), ("p99", "p99"))
               if isinstance((number := source.get(key)), int | float)
               and not isinstance(number, bool)}
-    if "average" in result:
-        result.setdefault("median", result["average"])
-        result.setdefault("p99", result["average"])
     return result
 
 

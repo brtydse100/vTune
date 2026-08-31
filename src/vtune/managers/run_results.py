@@ -114,12 +114,8 @@ def _trial_document(
     document = {"trial_id": report.trial_id, "status": report.status.value,
                 "failure": failure, "benchmark_count": len(report.benchmarks),
                 "metrics": default_metrics(report)}
-    assignment = {name.removeprefix("execution_"): report.artifacts[name]
-                  for name in ("execution_mode", "execution_worker",
-                               "execution_devices", "execution_port")
-                  if name in report.artifacts}
-    if assignment:
-        document["execution"] = assignment
+    if report.execution:
+        document["execution"] = dict(report.execution)
     if source is not None:
         document["source"] = dict(source)
     return document

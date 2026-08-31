@@ -38,12 +38,12 @@ class TrialExecutor:
     ) -> tuple[TrialReport, TrialScore | None, dict[str, float]]:
         trial_dir = directory / "trials" / parameters.trial_id
         context = TrialContext(parameters.trial_id)
+        context.execution["mode"] = execution_mode(self._config)
         if slot:
-            context.artifacts.update({
-                "execution_mode": execution_mode(self._config),
-                "execution_worker": slot.name,
-                "execution_devices": ",".join(map(str, slot.devices)),
-                "execution_port": slot.port,
+            context.execution.update({
+                "worker": slot.name,
+                "devices": list(slot.devices),
+                "port": slot.port,
             })
         scope = f"[{slot.name}][{parameters.trial_id}]" if slot else None
         def progress(event: str, name: str) -> None:

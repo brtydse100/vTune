@@ -27,6 +27,7 @@ class TrialReport:
     artifacts: Mapping[str, str]
     attempts: tuple[AttemptReport, ...] = ()
     failure: Failure | None = None
+    execution: Mapping[str, object] = MappingProxyType({})
 
     def __post_init__(self) -> None:
         if self.schema_version < 1 or not self.trial_id.strip():
@@ -37,6 +38,7 @@ class TrialReport:
             raise ValueError("an unsuccessful trial report requires a failure")
         object.__setattr__(self, "benchmarks", tuple(_freeze(self.benchmarks)))
         object.__setattr__(self, "artifacts", _freeze(self.artifacts))
+        object.__setattr__(self, "execution", _freeze(self.execution))
         object.__setattr__(self, "attempts", tuple(self.attempts))
 
     def to_dict(self) -> dict[str, object]:
@@ -44,6 +46,7 @@ class TrialReport:
             "schema_version": self.schema_version, "trial_id": self.trial_id,
             "status": self.status.value, "benchmarks": _plain(self.benchmarks),
             "artifacts": _plain(self.artifacts),
+            "execution": _plain(self.execution),
             "attempts": [_attempt_dict(attempt) for attempt in self.attempts],
         }
         if self.failure:

@@ -205,6 +205,8 @@ logging:
 
 # Optional: create a concise OpenAI-compatible summary in report.html.
 # Export the key before running; vTune never saves the key in YAML or artifacts.
+# HTTPS is required except for localhost, 127.0.0.0/8, or ::1. Redaction is
+# name-based and cannot guarantee arbitrary values contain no secrets.
 # analysis:
 #   llm_summary:
 #     base_url: https://api.example.com/v1
@@ -246,8 +248,8 @@ custom, and prefix-repetition examples plus arbitrary argument rules.
   workloads; multi-dataset GuideLLM runs are a roadmap item.
 - There is no separate warm-up switch in vTune. If the installed GuideLLM
   version exposes a warm-up field for a profile, place it inside that profile.
-- `analysis.llm_summary` is optional and sends only top-ranked, secret-redacted
-  trial values to the configured OpenAI-compatible endpoint.
+- `analysis.llm_summary` is optional and sends only the top-ranked,
+  name-redacted trial values to the configured OpenAI-compatible endpoint.
 - Console progress is shown at the selected logging level. Raw benchmark JSON
   and `benchmark.log` are always preserved for scoring and debugging.
 - Random and TPE trial requests larger than the unique search space are capped

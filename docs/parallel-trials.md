@@ -42,7 +42,9 @@ GPU sets must be unique, and GPU sets cannot overlap.
 - A failed trial releases only its own worker. Other trials continue.
 - Cancelling the experiment cancels every active trial manager, which cleans
   its owned vLLM and GuideLLM process groups.
-- Each trial stores its worker name, physical GPU identifiers, port, and mode.
+- Each trial stores its resolved assignment as a typed `execution` object:
+  mode for every trial, plus worker name, integer physical GPU identifiers,
+  and port for parallel trials. a5/a6 runs may lack this data.
 
 ## Interpreting results
 

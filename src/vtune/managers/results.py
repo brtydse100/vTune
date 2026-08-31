@@ -22,6 +22,7 @@ class ResultsManager:
                              for result in self._benchmark_results(context)),
             artifacts={key: str(value) for key, value in context.artifacts.items()},
             attempts=tuple(context.attempts), failure=outcome.failure,
+            execution=context.execution,
         )
         self._write(report)
         return report

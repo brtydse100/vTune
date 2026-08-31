@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## v0.1.0a7 â€” Correctness and trust
+
+- Persisted typed per-trial execution assignments separately from artifacts.
+- Stopped deriving median and P99 values when a backend supplied only an average.
+- Offline regeneration recomputes derived metric summaries without changing its source run.
+- Hardened optional LLM endpoints and made integrity warnings precise.
+
 ## v0.1.0a6 — Trustworthy progress and GuideLLM completion
 
 _August 31, 2026_

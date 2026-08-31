@@ -17,6 +17,7 @@ class TrialContext:
     trial_id: str
     values: dict[str, object] = field(default_factory=dict)
     artifacts: dict[str, object] = field(default_factory=dict)
+    execution: dict[str, object] = field(default_factory=dict)
     attempts: list[AttemptReport] = field(default_factory=list)
     commands: list[CommandRecord] = field(default_factory=list)
     startups: list[StartupRecord] = field(default_factory=list)

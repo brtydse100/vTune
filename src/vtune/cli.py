@@ -69,6 +69,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.action == "report":
             generated = regenerate_report(args.run, args.output)
             print(f"Offline report regenerated: {generated.directory}")
+            for warning in generated.warnings:
+                print(f"Integrity warning: {warning}", file=sys.stderr)
             return 0
         else:
             config = load_config(args.config)

@@ -45,7 +45,7 @@ def load_retry_source(
         if manifest.get("trial_id") != trial_id:
             raise ValueError(f"source manifest identity does not match trial '{trial_id}'")
         manifests.append(manifest)
-        warnings.extend(_artifact_warnings(manifest, trial_id))
+        warnings.extend(artifact_warnings(manifest, trial_id))
     return result, manifests, tuple(warnings)
 
 
@@ -78,7 +78,7 @@ def _indexed_trials(result: Mapping[str, object]) -> set[str]:
     return indexed
 
 
-def _artifact_warnings(manifest: Mapping[str, object], trial_id: str) -> list[str]:
+def artifact_warnings(manifest: Mapping[str, object], trial_id: str) -> list[str]:
     values = manifest.get("artifacts", {})
     if not isinstance(values, dict):
         raise ValueError(f"manifest for trial '{trial_id}' has invalid artifact records")

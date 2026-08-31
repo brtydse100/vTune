@@ -62,8 +62,8 @@ def render_dashboard(
 <span class='status'>{escape(context.status)}</span></header>
 <main>{contention}<section class='cards'>{cards}</section>
 <section><h2>Recommendation</h2>
-<p><strong>{escape(best.trial_id) if best else 'No eligible trial'}</strong> was selected by lowest request
-error percentage, then lowest error count, then highest <code>{escape(metric)}</code>.
+<p><strong>{escape(best.trial_id) if best else 'No eligible trial'}</strong> was selected by request quality first,
+then by the highest <code>{escape(metric)}</code> under the complete ranking policy.
 Request quality: {escape(quality)}.</p>{changes_table(best, baseline)}
 <p class='note'>These are observed relationships, not guaranteed causal effects. Multiple settings may change together.</p>
 <h3>Reproduction command</h3><pre>{escape(command)}</pre></section>
@@ -84,7 +84,7 @@ are errored or incomplete. Each eligible workload contributes its selected metri
 <section><h2>Best by benchmark</h2>{benchmark_table(context)}</section>
 <section><h2>Top configurations</h2>{ranking_table(ranking, baseline)}</section>
 <section><h2>Failures and interruptions</h2>{failures(trials)}</section>
-</main><footer>Generated from local vTune run artifacts. No external services required.</footer></body></html>"""
+</main><footer>{_footer(context)}</footer></body></html>"""
 
 
 def _card(label: str, value: str, detail: str) -> str:
@@ -112,6 +112,12 @@ def _llm_section(context: ReportContext) -> str:
     if context.llm_summary_error:
         return f"<section><h2>Optional LLM summary</h2><p class='warning'>{escape(context.llm_summary_error)}</p></section>"
     return ""
+
+
+def _footer(context: ReportContext) -> str:
+    if context.llm_summary:
+        return "Generated from local vTune run artifacts; it includes a summary returned by the configured endpoint."
+    return "Generated from local vTune run artifacts. No external services were used."
 
 
 def _best_command(directory: Path, best: TrialScore | None) -> str:

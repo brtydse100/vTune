@@ -30,6 +30,7 @@ class ManifestWriter:
             "schema_version": 1,
             "trial_id": context.trial_id,
             "status": status,
+            "execution": dict(context.execution),
             "model_path": model_path(config),
             "parameters": {
                 "fixed_args": redact_values({

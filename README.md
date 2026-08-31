@@ -19,6 +19,11 @@ with an RTX 3080. That host required
 
 Other combinations may work but are not yet verified.
 
+Each new trial stores a typed `execution` assignment in its trial result and
+manifest. a5/a6 runs may lack it. Reports show only statistics supplied by the
+benchmark backend; a7 offline regeneration corrects derived a6 summaries in a
+new destination without changing the source run.
+
 The published `py3-none-any` wheel installs on Linux and Windows. Configuration
 validation and stored-result inspection work on Windows, but starting an
 experiment is supported only on Linux because vLLM has no native Windows
