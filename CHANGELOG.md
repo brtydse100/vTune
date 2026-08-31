@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Fixed Python 3.11 imports on the source branch by using a dataclass default
+  factory for `TrialReport.execution`. The already-published a7 artifacts are
+  immutable; the fix will ship in the next package release.
+
 ## v0.1.0a7 — Correctness and trust
 
 - Persisted typed per-trial execution assignments separately from artifacts.
