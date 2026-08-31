@@ -9,6 +9,7 @@ import json
 from vtune.domain.trial_report import TrialReport
 from vtune.managers.scoring import TrialScore
 from vtune.reporting.context import ReportContext
+from vtune.reporting.analysis import default_metrics
 
 
 def ranking_table(
@@ -37,10 +38,11 @@ def evidence_table(ranking: tuple[TrialScore, ...]) -> str:
 
 
 def benchmark_table(context: ReportContext) -> str:
+    names = context.benchmark_names or tuple(context.benchmark_rankings)
     rows = "".join(
         f"<tr><td>{escape(name)}</td><td>{escape(values[0].trial_id)}</td>"
         f"<td>{values[0].value:.4f}</td></tr>"
-        for name, values in context.benchmark_rankings.items() if values
+        for name in names if (values := context.benchmark_rankings.get(name, ()))
     )
     return _table(("Benchmark", "Best trial", "Score"), rows)
 
@@ -58,6 +60,18 @@ def changes_table(best: TrialScore | None, baseline: TrialScore | None) -> str:
     )
     return (_table(("Setting", "Baseline", "Best observed"), rows)
             if rows else "<p>No explicit server arguments changed from baseline.</p>")
+
+
+def metrics_table(report: TrialReport | None) -> str:
+    if report is None:
+        return "<p class='muted'>No selected trial has metrics to display.</p>"
+    rows = "".join(
+        f"<tr><td>{escape(name.replace('_', ' '))}</td>"
+        f"<td>{_number(values.get('average'))}</td><td>{_number(values.get('median'))}</td>"
+        f"<td>{_number(values.get('p99'))}</td></tr>"
+        for name, values in default_metrics(report).items()
+    )
+    return _table(("Metric", "Average", "Median", "P99"), rows)
 
 
 def failures(trials: tuple[TrialReport, ...]) -> str:
@@ -102,3 +116,7 @@ def _table(headers: tuple[str, ...], rows: str) -> str:
     heading = "".join(f"<th>{escape(value)}</th>" for value in headers)
     body = rows or f"<tr><td colspan='{len(headers)}'>No data available.</td></tr>"
     return f"<div class='table'><table><thead><tr>{heading}</tr></thead><tbody>{body}</tbody></table></div>"
+
+
+def _number(value: object) -> str:
+    return f"{value:.4f}" if isinstance(value, float) else "—"

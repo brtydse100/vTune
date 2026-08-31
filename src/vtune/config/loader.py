@@ -61,9 +61,8 @@ def _build_config(raw: Any, config_directory: Path) -> VTuneConfig:
             f"Unknown top-level configuration key(s): {', '.join(unknown)}"
         )
 
-    if root.get("schema_version") != 1 or isinstance(
-        root.get("schema_version"), bool
-    ):
+    schema_version = root.get("schema_version", 1)
+    if schema_version != 1 or isinstance(schema_version, bool):
         raise ConfigValidationError("'schema_version' must be 1")
 
     experiment = _build_experiment(_required_mapping(root, "experiment"))

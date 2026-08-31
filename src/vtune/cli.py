@@ -22,7 +22,15 @@ from vtune.terminal import with_debug_logging
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="vtune", description="Experiment with vLLM serving configurations."
+        prog="vtune", description="Experiment with vLLM serving configurations.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Commands:
+  vtune --config experiment.yaml                 Start an experiment
+  vtune validate --config experiment.yaml        Validate configuration only
+  vtune retry --run RUN --trial ID [--trial ID]  Retry selected trial(s)
+  vtune reproduce --run RUN --trial ID           Print a saved trial command
+  vtune export --run RUN --trial ID              Export a vLLM serve command
+  vtune report --run RUN [--output DIRECTORY]    Regenerate an HTML report""",
     )
     parser.add_argument(
         "action", nargs="?", choices=("validate", "export", "reproduce", "retry", "report"),

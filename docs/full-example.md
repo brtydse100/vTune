@@ -14,8 +14,6 @@ vTune passes arbitrary `server` keys to vLLM and the contents of GuideLLM
 therefore work without being added to a vTune allowlist.
 
 ```yaml
-schema_version: 1  # Required. The only supported schema version is 1.
-
 experiment:
   name: complete-example  # Letters, numbers, underscores, and hyphens only.
   output_dir: runs        # Default: runs. Relative to the current directory.
@@ -204,6 +202,15 @@ execution:
 
 logging:
   level: INFO  # DEBUG, INFO, WARNING, ERROR, or CRITICAL. Default: INFO.
+
+# Optional: create a concise OpenAI-compatible summary in report.html.
+# Export the key before running; vTune never saves the key in YAML or artifacts.
+# analysis:
+#   llm_summary:
+#     base_url: https://api.example.com/v1
+#     model: your-model
+#     api_key_env: VTUNE_LLM_API_KEY
+#     timeout: 30
 ```
 
 ## vLLM Bench Serve alternative
@@ -239,7 +246,8 @@ custom, and prefix-repetition examples plus arbitrary argument rules.
   workloads; multi-dataset GuideLLM runs are a roadmap item.
 - There is no separate warm-up switch in vTune. If the installed GuideLLM
   version exposes a warm-up field for a profile, place it inside that profile.
-- `analysis` is reserved internally and currently has no user-facing options.
+- `analysis.llm_summary` is optional and sends only top-ranked, secret-redacted
+  trial values to the configured OpenAI-compatible endpoint.
 - Console progress is shown at the selected logging level. Raw benchmark JSON
   and `benchmark.log` are always preserved for scoring and debugging.
 - Random and TPE trial requests larger than the unique search space are capped

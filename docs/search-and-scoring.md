@@ -13,9 +13,15 @@ optimization:
 ```
 
 `maximize` names the metric used to rank trials. Direction is inferred: the
-declared metric is always maximized. If the experiment contains multiple
-benchmark runs, vTune combines their normalized metric values into the trial
-score while retaining per-run metrics in the artifacts.
+declared metric is always maximized. For each named benchmark, vTune averages
+the eligible workload metric values, takes the median when it was repeated,
+then averages named benchmark scores into the trial score. A workload with
+more than half of requests errored or incomplete is excluded; a trial without
+an eligible workload is not ranked.
+
+Grid evaluates every unique configuration and is best for small spaces. TPE
+uses completed trial results to choose promising configurations, so it is the
+better default for larger spaces where exhaustive Grid search is impractical.
 
 The fixed `server` configuration runs first as the baseline. The report
 shows the best observed configuration and its difference from that baseline.

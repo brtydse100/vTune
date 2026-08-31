@@ -1,9 +1,11 @@
-"""Terminal logging policy shared by the CLI and experiment runtime."""
+"""Timestamped terminal progress with a compact live TTY renderer."""
 
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime
 import sys
+from threading import Event, RLock, Thread
 from time import monotonic
 
 from vtune.config.models import VTuneConfig
@@ -17,18 +19,24 @@ def with_debug_logging(config: VTuneConfig) -> VTuneConfig:
 class TerminalLogger:
     def __init__(self, level: str) -> None:
         self._threshold = LOG_LEVELS.index(level)
-        self._color = bool(getattr(sys.stdout, "isatty", lambda: False)())
-        self._inline = self._color and level != "DEBUG"
-        self._stage_started: dict[str, float] = {}
+        self._tty = bool(getattr(sys.stdout, "isatty", lambda: False)()) and level != "DEBUG"
+        self._started, self._stages, self._drawn = monotonic(), {}, 0
+        self._lock, self._stop = RLock(), Event()
+        self._thread = Thread(target=self._refresh, daemon=True) if self._tty else None
+        if self._thread:
+            self._thread.start()
 
-    def debug(self, message: str) -> None:
-        self._write("DEBUG", message)
+    def close(self) -> float:
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=0.3)
+        with self._lock:
+            self._clear_live()
+        return monotonic() - self._started
 
-    def info(self, message: str) -> None:
-        self._write("INFO", message)
-
-    def warning(self, message: str) -> None:
-        self._write("WARNING", message)
+    def debug(self, message: str) -> None: self._write("DEBUG", message)
+    def info(self, message: str) -> None: self._write("INFO", message)
+    def warning(self, message: str) -> None: self._write("WARNING", message)
 
     def experiment(self, values: dict[str, object]) -> None:
         self.info("=" * 24 + " vTune experiment " + "=" * 24)
@@ -38,56 +46,88 @@ class TerminalLogger:
     def trial(self, position: int, total: int, trial_id: str,
               values: dict[str, object], worker: str | None = None) -> None:
         owner = f" · {worker}" if worker else ""
-        self.info(f"\n{'─' * 20} Trial {position} of {total} · {trial_id}{owner} {'─' * 20}")
+        self.info(f"\n{_bar(position, total)} Trial {position} of {total} · {trial_id}{owner}")
         if values:
             width = max(map(len, values))
             self.info("\n".join(f"{name:<{width}}  {value}" for name, value in values.items()))
 
     def baseline(self) -> None:
-        self.info(f"\n{'─' * 18} Baseline experiment · fixed configuration {'─' * 18}")
+        self.info("\n" + "─" * 18 + " Baseline experiment · fixed configuration " + "─" * 18)
 
     def stage(self, event: str, worker: str, scope: str | None = None) -> None:
-        label = _stage_label(worker)
-        prefix = f"{scope} " if scope else ""
-        key = f"{scope}:{worker}" if scope else worker
-        if event == "starting":
-            self._stage_started[key] = monotonic()
-            if self._inline and scope is None:
-                print(f"{self._symbol('…')} {label}", end="", flush=True)
-            return
-        elapsed = monotonic() - self._stage_started.pop(key, monotonic())
-        symbol = self._symbol("✓" if event == "completed" else "✗")
-        method = self.info if event == "completed" else self.warning
-        if self._inline and scope is None:
-            print("\r\033[2K", end="", flush=True)
-        method(f"{prefix}{symbol} {label} — {_elapsed(elapsed)}")
+        label, key = _stage_label(worker), f"{scope or ''}:{worker}"
+        with self._lock:
+            if event == "starting":
+                self._stages[key] = (label, scope, monotonic())
+                self._render_live()
+                return
+            label, _, started = self._stages.pop(key, (label, scope, monotonic()))
+            self._clear_live()
+            icon = "✓" if event == "completed" else "✗"
+            method = self.info if event == "completed" else self.warning
+            method(f"{scope + ' ' if scope else ''}{icon} {label} — {_elapsed(monotonic() - started)}")
+            self._render_live()
 
-    def _symbol(self, value: str) -> str:
-        if not self._color:
-            return {"…": "...", "✓": "OK", "✗": "ERROR"}[value]
-        colors = {"…": "36", "✓": "32", "✗": "31"}
-        return f"\033[{colors[value]}m{value}\033[0m"
+    def benchmark_score(self, name: str, repeat: int | None, score: float | None) -> None:
+        suffix = f" · repeat {repeat}" if repeat is not None else ""
+        if score is None:
+            self.warning(f"Benchmark {name}{suffix} — no eligible score; all requests failed")
+        else:
+            self.info(f"Benchmark {name}{suffix} — score={score:.4f}")
+
+    def benchmark_aggregate(self, name: str, score: float) -> None:
+        self.info(f"Benchmark {name} — repeated score={score:.4f}")
+
+    def session_complete(self, seconds: float) -> None:
+        self.info(f"Session duration: {_elapsed(seconds)}")
+
+    def _refresh(self) -> None:
+        while not self._stop.wait(0.12):
+            with self._lock:
+                self._render_live()
+
+    def _render_live(self) -> None:
+        if not self._tty or not self._stages:
+            return
+        self._clear_live()
+        phase = "⠋⠙⠹⠸⠼⠴⠦⠧"[int(monotonic() * 8) % 8]
+        for label, scope, started in self._stages.values():
+            prefix = f"{scope} " if scope else ""
+            print(f"{phase} {prefix}{label} · {_elapsed(monotonic() - started)}", flush=True)
+        self._drawn = len(self._stages)
+
+    def _clear_live(self) -> None:
+        if self._tty and self._drawn:
+            print(f"\033[{self._drawn}A\033[J", end="", flush=True)
+            self._drawn = 0
 
     def _write(self, level: str, message: str) -> None:
-        if LOG_LEVELS.index(level) >= self._threshold:
-            print(message, flush=True)
+        if LOG_LEVELS.index(level) < self._threshold:
+            return
+        with self._lock:
+            self._clear_live()
+            stamp = datetime.now().strftime("%H:%M:%S")
+            print(f"[{stamp} +{_elapsed(monotonic() - self._started)}] {message}", flush=True)
+            self._render_live()
 
 
 def _stage_label(worker: str) -> str:
-    if worker == "configuration_builder":
-        return "Building configuration"
-    if worker == "vllm_runner":
-        return "Starting vLLM server"
-    if worker == "readiness":
-        return "Waiting for server readiness"
-    if worker == "cleanup":
-        return "Stopping owned processes"
-    if worker.startswith("guidellm_benchmark:"):
-        _, name, repeat = worker.split(":", 2)
-        return f"Running benchmark {name} ({repeat.replace('-', ' ')})"
+    fixed = {"configuration_builder": "Building configuration", "vllm_runner": "Starting vLLM server",
+             "readiness": "Waiting for server readiness", "cleanup": "Stopping owned processes"}
+    if worker in fixed:
+        return fixed[worker]
+    if "_benchmark:" in worker:
+        _, name, *repeat = worker.split(":")
+        return f"Running benchmark {name}" + (f" ({repeat[0].replace('-', ' ')})" if repeat else "")
     return worker.replace("_", " ").capitalize()
 
 
 def _elapsed(seconds: float) -> str:
     minutes, remainder = divmod(max(0, int(seconds)), 60)
     return f"{minutes:02d}:{remainder:02d}"
+
+
+def _bar(position: int, total: int) -> str:
+    width, completed = 16, min(position, total)
+    filled = round(width * completed / max(total, 1))
+    return f"[{('=' * filled).ljust(width, '-')}] {completed}/{total}"

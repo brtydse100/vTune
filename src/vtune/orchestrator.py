@@ -25,9 +25,9 @@ from vtune.search.fixed_session import FixedSearchSession
 from vtune.terminal import TerminalLogger
 from vtune.reporting import Reporter
 from vtune.reporting.context import ReportContext
+from vtune.reporting.llm_summary import settings as llm_settings, summarize
 from vtune.reproduction.manifest import ManifestWriter
 from vtune.reproduction.metadata import collect_metadata
-
 @dataclass(frozen=True, slots=True)
 class RunOutcome:
     run_id: str
@@ -64,6 +64,7 @@ class Orchestrator:
             validate_search(self._config)
         server_port(self._config)
         baseline_enabled(self._config)
+        llm_settings(self._config)
         slots = worker_slots(self._config)
         if slots and not all(
             any(slot.supports(trial.server_args, self._config.server) for slot in slots)
@@ -158,11 +159,6 @@ class Orchestrator:
                     f"{owner}OK Trial completed — score={score.value:.4f}, "
                     f"errors={failed_requests}, error_rate={score.error_rate:.2%}"
                 )
-                best = session.ranking[0]
-                self._terminal.info(
-                    f"Best so far: {best.trial_id} — score={best.value:.4f}, "
-                    f"error_rate={best.error_rate:.2%}"
-                )
             else:
                 search.fail(parameters, report.status is WorkerStatus.INTERRUPTED)
                 detail = (f"{report.failure.code}: {report.failure.message}"
@@ -177,18 +173,22 @@ class Orchestrator:
                 break
         status = run_status(tuple(session.reports))
         completed_at = datetime.now(timezone.utc).isoformat()
-        session.persist(results, run_id, self._metric, status, started_at, completed_at,
-                        self._source_run_id, self._sources)
         reports, ranking = tuple(session.reports), session.ranking
         by_benchmark = session.benchmark_rankings
+        llm_summary, llm_error = await summarize(self._config, self._metric, ranking)
+        if llm_error:
+            self._terminal.warning(llm_error)
         report_context = ReportContext(run_id, status, started_at, completed_at,
-            self._source_run_id, self._sources, by_benchmark, mode)
+            self._source_run_id, self._sources, by_benchmark, mode, names, llm_summary, llm_error)
+        session.persist(results, run_id, self._metric, status, started_at, completed_at,
+                        self._source_run_id, self._sources, llm_summary)
         Reporter(directory).write(
             self._metric, reports, ranking, session.baseline, report_context,
         )
         details = results.summary(self._metric, reports, ranking, by_benchmark,
                                   session.baseline)
         summary = f"Run status: {status}\n{details}"
+        self._terminal.session_complete(self._terminal.close())
         return RunOutcome(run_id, directory, reports, ranking, summary, status)
 
     async def _run_trial(

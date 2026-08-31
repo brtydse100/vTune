@@ -71,8 +71,6 @@ never resumed or overwritten. Manual retries create a new linked run.
 ## Configuration
 
 ```yaml
-schema_version: 1
-
 experiment:
   name: qwen-h100
   output_dir: runs
@@ -139,7 +137,7 @@ logging:
 
 ### Required sections
 
-`schema_version`, `experiment`, and `server` are required. A runnable
+`experiment` and `server` are required. A runnable
 experiment also requires at least one `benchmark.runs` entry and a non-empty
 `optimization.maximize` metric.
 

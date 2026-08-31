@@ -51,7 +51,7 @@ def build_trial_workers(
         benchmark_worker(
             config, run, ProcessRunner(debug, f"{engine}:{run['name']}"), directory,
             timeout=timeout_for_run(run, config.timeouts.get("benchmark")),
-            shutdown_grace=grace, repeat_index=repeat,
+            shutdown_grace=grace, repeat_index=repeat if repeats > 1 else None,
         )
         for run in configured_runs(config)
         for repeat in range(1, repeats + 1)

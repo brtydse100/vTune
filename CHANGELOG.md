@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Progress and diagnostics
+
+- Added timestamped live terminal stages, TTY loading animation, trial progress,
+  per-repeat scores, and final session duration.
+- Removed repeated artifact folders for `benchmark.repeats: 1` and added a
+  clear warning when every benchmark request fails or is ineligible.
+
+### Reports and configuration
+
+- Made `schema_version` optional while retaining version-1 compatibility.
+- Added ordered benchmark tables, labelled chart axes, standard metric tables,
+  scoring/importance explanations, run duration, and persisted metric summaries.
+- Added optional secret-safe OpenAI-compatible report summaries configured with
+  `analysis.llm_summary` and an environment-variable API key.
+- Expanded CLI help and documented asynchronous GuideLLM request profiles.
+
 ## v0.1.0a5 — Native benchmarks and explicit parallel trials
 
 _August 31, 2026_

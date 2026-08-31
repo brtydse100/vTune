@@ -20,7 +20,7 @@ class VLLMBenchmarkWorker:
     def __init__(
         self, config: VTuneConfig, run: Mapping[str, object], runner: ProcessRunner,
         artifacts: Path, timeout: float = 180, shutdown_grace: float = 5,
-        repeat_index: int = 1,
+        repeat_index: int | None = None,
     ) -> None:
         if timeout <= 0 or shutdown_grace < 0:
             raise ValueError("benchmark timeout must be positive and grace non-negative")
@@ -32,11 +32,12 @@ class VLLMBenchmarkWorker:
 
     @property
     def name(self) -> str:
-        return f"vllm_benchmark:{self._run_name}:repeat-{self._repeat_index}"
+        suffix = f":repeat-{self._repeat_index}" if self._repeat_index else ""
+        return f"vllm_benchmark:{self._run_name}{suffix}"
 
     @property
     def _ownership_key(self) -> str:
-        return f"_vllm_bench_owned_process_{self._run_name}_{self._repeat_index}"
+        return f"_vllm_bench_owned_process_{self._run_name}_{self._repeat_index or 'single'}"
 
     async def execute(self, context: TrialContext) -> WorkerResult[None]:
         endpoint = context.values.get("server_endpoint")
@@ -44,7 +45,8 @@ class VLLMBenchmarkWorker:
             return self._failed("benchmark_endpoint_missing", "Missing server endpoint")
         try:
             artifacts = attempt_directory(self._artifacts, context)
-            artifacts = artifacts / "repeats" / f"{self._repeat_index:03d}"
+            if self._repeat_index:
+                artifacts = artifacts / "repeats" / f"{self._repeat_index:03d}"
             plan = build_plan(self._config, self._run, endpoint, artifacts)
             plan.directory.mkdir(parents=True, exist_ok=True)
             context.commands.append(CommandRecord(
@@ -63,7 +65,7 @@ class VLLMBenchmarkWorker:
         except Exception as error:
             return self._failed("benchmark_launch_failed", str(error))
         context.values[self._ownership_key] = process
-        prefix = f"benchmark_{plan.run_name}_repeat_{self._repeat_index}"
+        prefix = f"benchmark_{plan.run_name}" + (f"_repeat_{self._repeat_index}" if self._repeat_index else "")
         context.artifacts[f"{prefix}_log"] = str(plan.log_path)
         try:
             returncode = await asyncio.wait_for(process.wait(), timeout=self._timeout)

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Mapping
 
 from vtune.domain.trial_report import TrialReport
 from vtune.managers.scoring import TrialScore
 from vtune.reproduction.redaction import redact_environment, redact_values
+from vtune.reporting.analysis import default_metrics
 
 
 class RunResultsManager:
@@ -24,12 +26,14 @@ class RunResultsManager:
         *, status: str = "completed", started_at: str | None = None,
         completed_at: str | None = None, source_run_id: str | None = None,
         sources: Mapping[str, Mapping[str, str]] | None = None,
+        analysis_summary: str | None = None,
     ) -> Path:
         links = sources or {}
         document = {
             "schema_version": 1, "run_id": run_id, "maximize": metric,
             "execution_mode": self._execution_mode,
             "status": status, "started_at": started_at, "completed_at": completed_at,
+            "duration_seconds": _duration(started_at, completed_at),
             "trial_counts": _status_counts(trials),
             "trials": [_trial_document(item, links.get(item.trial_id)) for item in trials],
             "ranking": [_document(item) for item in ranking],
@@ -38,9 +42,12 @@ class RunResultsManager:
             "improvement_percent": _improvement(ranking, baseline),
             "best_by_benchmark": {name: _document(values[0]) if values else None
                                   for name, values in benchmark_rankings.items()},
+            "benchmark_order": list(benchmark_rankings),
         }
         if source_run_id is not None:
             document["source_run_id"] = source_run_id
+        if analysis_summary is not None:
+            document["analysis_summary"] = analysis_summary
         self._output_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self._output_path.with_suffix(self._output_path.suffix + ".tmp")
         temporary.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
@@ -105,7 +112,8 @@ def _trial_document(
         failure = {"code": report.failure.code, "message": report.failure.message,
                    "retryable": report.failure.retryable}
     document = {"trial_id": report.trial_id, "status": report.status.value,
-                "failure": failure, "benchmark_count": len(report.benchmarks)}
+                "failure": failure, "benchmark_count": len(report.benchmarks),
+                "metrics": default_metrics(report)}
     assignment = {name.removeprefix("execution_"): report.artifacts[name]
                   for name in ("execution_mode", "execution_worker",
                                "execution_devices", "execution_port")
@@ -128,3 +136,12 @@ def _improvement(
     if not ranking or baseline is None or baseline.value == 0:
         return None
     return (ranking[0].value - baseline.value) / baseline.value * 100
+
+
+def _duration(started_at: str | None, completed_at: str | None) -> float | None:
+    if not started_at or not completed_at:
+        return None
+    try:
+        return max(0.0, (datetime.fromisoformat(completed_at) - datetime.fromisoformat(started_at)).total_seconds())
+    except ValueError:
+        return None

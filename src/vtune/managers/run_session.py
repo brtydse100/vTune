@@ -56,12 +56,13 @@ class RunAccumulator:
         status: str, started_at: str, completed_at: str | None,
         source_run_id: str | None,
         sources: Mapping[str, Mapping[str, str]],
+        analysis_summary: str | None = None,
     ) -> None:
         manager.save(
             run_id, metric, tuple(self.reports), self.ranking,
             self.benchmark_rankings, self.baseline, status=status,
             started_at=started_at, completed_at=completed_at,
-            source_run_id=source_run_id, sources=sources,
+            source_run_id=source_run_id, sources=sources, analysis_summary=analysis_summary,
         )
 
 

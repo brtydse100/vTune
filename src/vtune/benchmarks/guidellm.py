@@ -54,8 +54,7 @@ def build_plan(
             if label == "constraint" and isinstance(value, dict) and value.get("kind") == "max_duration":
                 value = {**value, "seconds": normalize_durations(value.get("seconds"))}
             argv.extend((f"--{label}", _serialize(_mapping(value, label))))
-    argv.extend(("--output", f"kind=json,path={json_path}",
-                 "--disable-console-interactive"))
+    argv.extend(("--output", f"kind=json,path={json_path}"))
     return GuideLLMPlan(str(name), tuple(argv), directory, json_path,
                         directory / "benchmark.log")
 

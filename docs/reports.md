@@ -14,6 +14,17 @@ Top-configuration tables show only settings that varied in the experiment and
 remove duplicate configurations. Failed and interrupted trials remain visible
 without being ranked as successful results.
 
+The selected-trial table shows available throughput, TTFT, end-to-end latency,
+and total-time measurements with average, median, and P99 values. Chart axes
+are labelled. Parameter importance is exploratory: it groups observed scores
+by each setting value and normalizes the between-group score differences; it
+does not establish causation.
+
+If `analysis.llm_summary` is configured, the report also includes a short
+OpenAI-compatible summary. Its API key is read only from the named environment
+variable and is never persisted. An unavailable endpoint becomes a report
+warning and never invalidates the experiment.
+
 Each trial directory also contains its resolved configuration, normalized
 result, reproduction manifest, `vllm.log`, and `benchmark.log`. Persistent
 values are secret-redacted.

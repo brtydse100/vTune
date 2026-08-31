@@ -13,7 +13,7 @@ from vtune.reporting.charts import (
 )
 from vtune.reporting.context import ReportContext
 from vtune.reporting.tables import (
-    benchmark_table, changes_table, evidence_table, failures, ranking_table,
+    benchmark_table, changes_table, evidence_table, failures, metrics_table, ranking_table,
 )
 from vtune.reproduction.export import export_vllm_command
 
@@ -25,6 +25,7 @@ def render_dashboard(
 ) -> str:
     best_tuned = ranking[0] if ranking else None
     best = _best_observed(best_tuned, baseline)
+    best_report = next((report for report in trials if best and report.trial_id == best.trial_id), None)
     completed = sum(report.status.value == "completed" for report in trials)
     failed = sum(report.status.value == "failed" for report in trials)
     interrupted = sum(report.status.value == "interrupted" for report in trials)
@@ -66,9 +67,13 @@ error percentage, then lowest error count, then highest <code>{escape(metric)}</
 Request quality: {escape(quality)}.</p>{changes_table(best, baseline)}
 <p class='note'>These are observed relationships, not guaranteed causal effects. Multiple settings may change together.</p>
 <h3>Reproduction command</h3><pre>{escape(command)}</pre></section>
+<section><h2>Selected trial metrics</h2>
+<p class='note'>Metrics are averaged across the selected trial's benchmark workloads. Values are shown only when the benchmark backend supplied them.</p>
+{metrics_table(best_report)}</section>
+{_llm_section(context)}
 <section><h2>Evidence behind the ranking</h2>{evidence_table(ranking)}
 <p class='note'>A workload is excluded from score calculation when more than half of its requests
-are errored or incomplete. A trial with no eligible workload is not ranked.</p></section>
+are errored or incomplete. Each eligible workload contributes its selected metric; runs use their workload mean, repeats use the median run score, and the trial score is the mean of named runs. A trial with no eligible workload is not ranked.</p></section>
 <section class='split'><div><h2>Baseline vs top configurations</h2>{comparison_chart(ranking, baseline)}</div>
 <div><h2>Score over time</h2>{history_chart(trials, ranking)}</div></section>
 <section class='split'><div><h2>Parameter importance</h2>{importance}</div>
@@ -92,12 +97,21 @@ def _importance(ranking: tuple[TrialScore, ...]) -> str:
         return ("<p class='muted'>Not shown: fewer than 5 eligible tuned trials. "
                 "A percentage here would look precise without enough evidence.</p>")
     values = parameter_importance(ranking)
-    confidence = "Exploratory association across evaluated trials; it is not causal."
+    confidence = ("Exploratory association across evaluated trials, not causation. For each setting, vTune groups trial scores by observed value and measures how far each group mean is from the overall mean. The displayed percentages normalize those between-group differences to 100%.")
     bars = "".join(
         f"<div class='hbar'><span>{escape(name)}</span><i style='width:{value * 70:.1f}%'></i>"
         f"<b>{value:.1%}</b></div>" for name, value in values.items()
     ) or "<p class='muted'>Not enough varied trials to estimate importance.</p>"
     return f"<p class='note'>{confidence}</p>{bars}"
+
+
+def _llm_section(context: ReportContext) -> str:
+    if context.llm_summary:
+        text = escape(context.llm_summary).replace("\n", "<br>")
+        return f"<section><h2>Optional LLM summary</h2><p>{text}</p></section>"
+    if context.llm_summary_error:
+        return f"<section><h2>Optional LLM summary</h2><p class='warning'>{escape(context.llm_summary_error)}</p></section>"
+    return ""
 
 
 def _best_command(directory: Path, best: TrialScore | None) -> str:

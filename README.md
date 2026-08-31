@@ -54,7 +54,6 @@ guidellm --help
 Create `experiment.yaml`:
 
 ```yaml
-schema_version: 1
 experiment:
   name: first-run
 server:

@@ -28,7 +28,7 @@ def history_chart(
         for (name, value), (x, y) in zip(points, coords)
     )
     return _svg(f"<polyline points='{line}' fill='none' stroke='#2563eb' stroke-width='3'/>{dots}",
-                "Trial score history")
+                "Trial score history", "Trial order", "Score")
 
 
 def comparison_chart(
@@ -76,12 +76,15 @@ def scatter_chart(trials: tuple[TrialReport, ...]) -> str:
         f"<title>{escape(name)}: {x:.2f} tok/s, {y:.2f} ms</title></circle>"
         for name, x, y in points
     )
-    return _svg(dots, "Throughput versus time to first token")
+    return _svg(dots, "Throughput versus time to first token", "Throughput (tok/s)", "TTFT (ms)")
 
 
-def _svg(content: str, label: str) -> str:
+def _svg(content: str, label: str, x_label: str, y_label: str) -> str:
     return (f"<svg viewBox='0 0 600 310' role='img' aria-label='{escape(label)}'>"
-            "<path d='M40 20V280H580' fill='none' stroke='#94a3b8'/>" + content + "</svg>")
+            "<path d='M40 20V280H580' fill='none' stroke='#94a3b8'/>"
+            f"<text x='310' y='305' text-anchor='middle'>{escape(x_label)}</text>"
+            f"<text x='14' y='155' text-anchor='middle' transform='rotate(-90 14 155)'>{escape(y_label)}</text>"
+            + content + "</svg>")
 
 
 def _empty(message: str) -> str:

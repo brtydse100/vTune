@@ -17,6 +17,7 @@ from vtune.terminal import TerminalLogger
 from vtune.workers.base import TrialContext
 from vtune.workers.factory import build_trial_workers
 from vtune.domain.trial_report import TrialReport
+from vtune.domain.benchmark import BenchmarkResult
 
 
 class TrialExecutor:
@@ -45,7 +46,10 @@ class TrialExecutor:
                 "execution_port": slot.port,
             })
         scope = f"[{slot.name}][{parameters.trial_id}]" if slot else None
-        progress = lambda event, name: self._terminal.stage(event, name, scope)
+        def progress(event: str, name: str) -> None:
+            self._terminal.stage(event, name, scope)
+            if event == "completed" and "_benchmark:" in name:
+                self._benchmark_progress(name, context)
         outcome = await TrialManager(
             build_trial_workers(self._config, parameters, trial_dir, slot),
             max_attempts(self._config), progress,
@@ -63,13 +67,29 @@ class TrialExecutor:
         results = raw if isinstance(raw, tuple) else ()
         value = self._scoring.score(results)
         by_benchmark = self._scoring.score_each(results)
+        quality = self._scoring.quality(results)
+        if not quality.successful and quality.errored + quality.incomplete:
+            self._terminal.warning(
+                "All benchmark requests failed or were incomplete; this trial is excluded from ranking."
+            )
+        if len(results) > len(by_benchmark):
+            for name, score in by_benchmark.items():
+                self._terminal.benchmark_aggregate(name, score)
         if value is None or outcome.failure is not None:
             return report, None, {}
         args = {**{name: value for name, value in self._config.server.items()
                    if name != "model"}, **parameters.server_args}
         env = {**self._config.env, **parameters.server_env}
-        quality = self._scoring.quality(results)
         return report, TrialScore(
             parameters.trial_id, value, args, env, quality.successful,
             quality.errored, quality.incomplete, quality.excluded_workloads,
         ), by_benchmark
+
+    def _benchmark_progress(self, worker: str, context: TrialContext) -> None:
+        values = context.values.get("benchmark_results", ())
+        if not isinstance(values, tuple) or not values or not isinstance(values[-1], BenchmarkResult):
+            return
+        result = values[-1]
+        score = self._scoring.score_each((result,)).get(result.run_name)
+        repeat = int(worker.rsplit("repeat-", 1)[1]) if "repeat-" in worker else None
+        self._terminal.benchmark_score(result.run_name, repeat, score)

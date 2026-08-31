@@ -49,6 +49,9 @@ def regenerate_report(run: Path, output: Path | None = None) -> RegeneratedRepor
         _optional_text(document.get("completed_at")),
         _optional_text(document.get("source_run_id")), _sources(document),
         benchmark_rankings, str(document.get("execution_mode", "sequential")),
+        tuple(str(value) for value in document.get("benchmark_order", ())
+              if isinstance(value, str)),
+        _optional_text(document.get("analysis_summary")),
     )
     destination.mkdir(parents=True)
     result_path = destination / "result.json"

@@ -16,3 +16,6 @@ class ReportContext:
     sources: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
     benchmark_rankings: Mapping[str, tuple[TrialScore, ...]] = field(default_factory=dict)
     execution_mode: str = "sequential"
+    benchmark_names: tuple[str, ...] = ()
+    llm_summary: str | None = None
+    llm_summary_error: str | None = None

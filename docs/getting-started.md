@@ -28,7 +28,6 @@ without launching experiments. See [installation choices](installation.md).
 ## 3. Create `experiment.yaml`
 
 ```yaml
-schema_version: 1
 experiment:
   name: first-run
 server:

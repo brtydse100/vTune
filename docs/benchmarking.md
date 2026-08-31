@@ -141,6 +141,13 @@ constraints:
 
 Constraints can be combined and are passed through to GuideLLM.
 
+`max_requests` is a stopping condition, not a request-serialization setting.
+Throughput, constant, and poisson profiles may issue requests concurrently;
+GuideLLM drains in-flight requests before it finishes. Use
+`profile: {kind: synchronous}` when each request must wait for the previous
+response, or set `max_concurrency: 1` where the selected profile supports it.
+vTune preserves GuideLLM's normal console and request-draining lifecycle.
+
 ## Request formats
 
 Choose the vLLM-compatible route required by the dataset and model:

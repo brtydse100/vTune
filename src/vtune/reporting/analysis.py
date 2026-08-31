@@ -10,6 +10,16 @@ from vtune.domain.trial_report import TrialReport
 from vtune.managers.scoring import TrialScore
 
 
+DEFAULT_METRICS = {
+    "throughput_tokens_per_second": ("output_tokens_per_second", "output_throughput"),
+    "ttft_ms": ("time_to_first_token_ms", "time_to_first_token", "mean_ttft_ms",
+                "median_ttft_ms", "p99_ttft_ms"),
+    "end_to_end_ms": ("end_to_end_latency_ms", "end_to_end_latency", "mean_e2el_ms",
+                      "median_e2el_ms", "p99_e2el_ms"),
+    "total_time_seconds": ("total_time_seconds", "total_time", "duration"),
+}
+
+
 def parameter_importance(ranking: tuple[TrialScore, ...]) -> dict[str, float]:
     """Estimate importance from between-value score variance."""
     if len(ranking) < 2:
@@ -65,6 +75,55 @@ def trial_metric(report: TrialReport, metric: str) -> float | None:
             if isinstance(metrics, Mapping) and (value := _value(metrics.get(metric))) is not None:
                 values.append(value)
     return fmean(values) if values else None
+
+
+def default_metrics(report: TrialReport) -> dict[str, dict[str, float]]:
+    """Return comparable common metrics without inventing missing measurements."""
+    return {
+        name: summary for name, aliases in DEFAULT_METRICS.items()
+        if (summary := _metric_summary(report, aliases))
+    }
+
+
+def _metric_summary(report: TrialReport, aliases: tuple[str, ...]) -> dict[str, float]:
+    summaries = []
+    for benchmark in report.benchmarks:
+        for workload in benchmark.get("workloads", ()):
+            if not isinstance(workload, Mapping) or not isinstance(workload.get("metrics"), Mapping):
+                continue
+            metrics = workload["metrics"]
+            for name in aliases:
+                if (summary := _summary(name, metrics.get(name))):
+                    summaries.append(summary)
+                    break
+    if not summaries:
+        return {}
+    return {name: fmean(values) for name in ("average", "median", "p99")
+            if (values := [summary[name] for summary in summaries if name in summary])}
+
+
+def _summary(name: str, value: object) -> dict[str, float]:
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        number = float(value)
+        if name.startswith("p99_"):
+            return {"p99": number}
+        if name.startswith("median_"):
+            return {"median": number}
+        if name.startswith("mean_"):
+            return {"average": number}
+        return {"average": number, "median": number, "p99": number}
+    if not isinstance(value, Mapping):
+        return {}
+    observed = value.get("successful")
+    source = observed if isinstance(observed, Mapping) else value
+    result = {"average": number for key, name in (("mean", "average"), ("average", "average"),
+              ("median", "median"), ("p99", "p99"))
+              if isinstance((number := source.get(key)), int | float)
+              and not isinstance(number, bool)}
+    if "average" in result:
+        result.setdefault("median", result["average"])
+        result.setdefault("p99", result["average"])
+    return result
 
 
 def _value(value: object) -> float | None:
