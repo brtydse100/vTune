@@ -15,6 +15,10 @@ from vtune.domain.results import Failure, WorkerResult
 from vtune.reproduction.models import CommandRecord
 from vtune.workers.base import TrialContext
 from vtune.workers.attempts import attempt_directory
+from vtune.workers.completion import (
+    completed_requests as _completed_requests, max_requests as _max_requests,
+    request_count_failure as _request_count_failure,
+)
 from vtune.workers.failure_details import classified_failure
 from vtune.workers.process import ManagedProcess, ProcessRunner, ProcessSpec
 
@@ -134,72 +138,3 @@ class GuideLLMBenchmarkWorker:
     @staticmethod
     def _failed(code: str, message: str) -> WorkerResult[None]:
         return WorkerResult.failed(Failure(code, message))
-
-
-def _completed_requests(result: object) -> bool:
-    workloads = getattr(result, "workloads", ())
-    for workload in workloads:
-        metrics = getattr(workload, "metrics", {})
-        totals = metrics.get("request_totals", {}) if isinstance(metrics, Mapping) else {}
-        if not isinstance(totals, Mapping) or "successful" not in totals:
-            return True
-        if isinstance(totals.get("successful"), int) and totals["successful"] > 0:
-            return True
-    return False
-
-
-def _max_requests(run: Mapping[str, object]) -> tuple[bool, int | None]:
-    constraints = run.get("constraints", [])
-    if not isinstance(constraints, list):
-        return False, None
-    for constraint in constraints:
-        if isinstance(constraint, Mapping) and constraint.get("kind") == "max_requests":
-            count = constraint.get("count")
-            valid = (isinstance(count, int) and not isinstance(count, bool) and count > 0)
-            return True, count if valid else None
-    return False, None
-
-
-def _request_count_failure(result: object, expected: int | None) -> Failure | None:
-    if expected is None:
-        return Failure(
-            "benchmark_request_total_missing",
-            "GuideLLM request-count benchmark is missing a positive max_requests count",
-        )
-    workloads = getattr(result, "workloads", ())
-    if not workloads:
-        return Failure(
-            "benchmark_request_total_missing",
-            "GuideLLM result contains no workload metrics; the benchmark cannot be scored safely",
-        )
-    for workload in workloads:
-        metrics = getattr(workload, "metrics", {})
-        totals = metrics.get("request_totals") if isinstance(metrics, Mapping) else None
-        request_total = metrics.get("request_total") if isinstance(metrics, Mapping) else None
-        if (not isinstance(totals, Mapping)
-                or not isinstance(request_total, int)
-                or isinstance(request_total, bool)):
-            return Failure(
-                "benchmark_request_total_missing",
-                "GuideLLM result is missing the normalized request total; "
-                "the benchmark cannot be scored safely",
-            )
-        successful = totals.get("successful")
-        errored = totals.get("errored")
-        incomplete = totals.get("incomplete")
-        if not all(isinstance(value, int) and not isinstance(value, bool)
-                   for value in (successful, errored, incomplete)):
-            return Failure(
-                "benchmark_request_totals_invalid",
-                "GuideLLM result has invalid normalized request totals",
-            )
-        observed = successful + errored + incomplete
-        if (request_total != expected or observed != expected or errored or incomplete
-                or successful != expected):
-            return Failure(
-                "benchmark_requests_incomplete",
-                f"GuideLLM request-count benchmark expected {expected} successful requests; "
-                f"observed {successful} successful, {errored} errored, "
-                f"{incomplete} incomplete, total {request_total}",
-            )
-    return None

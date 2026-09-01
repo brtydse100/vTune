@@ -14,6 +14,7 @@ from vtune.domain.results import Failure, WorkerResult
 from vtune.reproduction.models import CommandRecord
 from vtune.workers.attempts import attempt_directory
 from vtune.workers.base import TrialContext
+from vtune.workers.completion import reported_request_total, request_count_failure
 from vtune.workers.failure_details import classified_failure
 from vtune.workers.process import ManagedProcess, ProcessRunner, ProcessSpec
 
@@ -102,6 +103,11 @@ class VLLMBenchmarkWorker:
             return WorkerResult.failed(classified_failure(
                 plan.log_path, "benchmark_result_invalid", str(error)
             ))
+        failure = request_count_failure(
+            result, reported_request_total(result), "vLLM Bench Serve",
+        )
+        if failure is not None:
+            return WorkerResult.failed(failure)
         previous = context.values.get("benchmark_results", ())
         if self._warmup_index is None:
             context.values["benchmark_results"] = (*previous, result)

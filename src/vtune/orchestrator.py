@@ -10,15 +10,12 @@ from vtune.config.preflight import validate_config
 from vtune.config.runtime import baseline_enabled, logging_level, maximize_metric
 from vtune.domain.results import WorkerStatus
 from vtune.domain.trial_report import TrialReport
-from vtune.execution import (
-    TrialExecutor, WorkerSlot, execution_mode, parallel_trials, sequential_trials, worker_slots,
-)
+from vtune.execution import (TrialExecutor, WorkerSlot, execution_mode, parallel_trials,
+                             sequential_trials, worker_slots)
 from vtune.managers.run_results import RunResultsManager
 from vtune.managers.run_session import RunAccumulator, run_status
 from vtune.managers.scoring import ScoringManager, TrialScore
-from vtune.search import (
-    TrialParameters, create_search, search_warning,
-)
+from vtune.search import TrialParameters, create_search, search_warning
 from vtune.search.fixed_session import FixedSearchSession
 from vtune.terminal import TerminalLogger
 from vtune.reporting import Reporter
@@ -47,7 +44,10 @@ class Orchestrator:
         validate_config(config)
         self._config = config
         self._metric = maximize_metric(config)
-        self._scoring = ScoringManager(self._metric)
+        run_names = tuple(str(run["name"]) for run in configured_runs(config))
+        self._scoring = ScoringManager(
+            self._metric, configured_min_repeats(config), run_names,
+        )
         self._manifest = ManifestWriter({})
         self._trial_executor: TrialExecutor | None = None
         self._retry_trials = trials

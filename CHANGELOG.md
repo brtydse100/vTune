@@ -4,6 +4,19 @@
 
 _No changes yet._
 
+## v0.1.0a10 — Benchmark trust and release safeguards
+
+_September 2, 2026_
+
+- Reject incomplete GuideLLM request-count and vLLM Bench Serve results before
+  they can enter scoring, and require clean normalized request totals.
+- Increased the default request-count timeout to one hour and added a vLLM
+  drain gate with persisted evidence after warmups and measured repeats.
+- Added warmups, minimum-repeat enforcement, uncertainty summaries, drift
+  detection, and sequential finalist validation.
+- Added public behavioral tests, dependency review, SBOM generation, immutable
+  provenance action pinning, and built-wheel tests in the publish workflow.
+
 ## v0.1.0a9 — Comparable benchmark evidence
 
 _September 1, 2026_

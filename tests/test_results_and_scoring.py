@@ -2,11 +2,14 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from vtune.benchmarks.guidellm import parse_result as parse_guidellm_result
 from vtune.benchmarks.vllm import parse_result as parse_vllm_result
 from vtune.managers.scoring import ScoringManager, TrialScore
 from vtune.measurement import drifted, summarize
 from vtune.workers.benchmark import _request_count_failure
+from vtune.workers.completion import reported_request_total
 
 
 def test_guidellm_result_is_normalized_without_fabricating_percentiles(tmp_path: Path) -> None:
@@ -80,3 +83,55 @@ def test_boolean_request_total_is_rejected() -> None:
 
     assert failure is not None
     assert failure.code == "benchmark_request_total_missing"
+
+
+def test_vllm_incomplete_requests_are_rejected() -> None:
+    result = SimpleNamespace(workloads=(SimpleNamespace(metrics={
+        "request_total": 2,
+        "request_totals": {"successful": 1, "errored": 0, "incomplete": 1},
+    }),))
+
+    failure = _request_count_failure(result, reported_request_total(result), "vLLM")
+
+    assert failure is not None
+    assert failure.code == "benchmark_requests_incomplete"
+
+
+def test_scoring_requires_clean_totals_and_minimum_repeats(tmp_path: Path) -> None:
+    complete = _benchmark_result(tmp_path, "requests", 5.0, 2, 0)
+    failed = _benchmark_result(tmp_path, "requests", 50.0, 1, 1)
+    manager = ScoringManager("requests_per_second", 2, ("requests",))
+
+    assert manager.score((complete, failed)) is None
+    assert manager.score((complete, complete)) == 5.0
+
+
+def test_scoring_requires_every_configured_benchmark(tmp_path: Path) -> None:
+    result = _benchmark_result(tmp_path, "requests", 5.0, 2, 0)
+    manager = ScoringManager("requests_per_second", 1, ("requests", "latency"))
+
+    assert manager.score((result,)) is None
+
+
+def test_scoring_rejects_missing_request_totals() -> None:
+    result = SimpleNamespace(run_name="requests", workloads=(SimpleNamespace(metrics={
+        "requests_per_second": {"average": 5.0},
+    }),))
+
+    assert ScoringManager("requests_per_second").score((result,)) is None
+
+
+def test_scoring_rejects_invalid_minimum_repeats() -> None:
+    with pytest.raises(ValueError, match="minimum repeats"):
+        ScoringManager("requests_per_second", True)
+
+
+def _benchmark_result(
+    tmp_path: Path, name: str, score: float, successful: int, errored: int,
+):
+    path = tmp_path / f"{name}.json"
+    path.write_text(json.dumps({
+        "backend": "vllm", "model_id": "demo", "num_prompts": successful + errored,
+        "completed": successful, "failed": errored, "request_throughput": score,
+    }), encoding="utf-8")
+    return parse_vllm_result(path, name)

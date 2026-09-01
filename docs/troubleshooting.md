@@ -29,11 +29,12 @@ Set an explicit duration such as `30m` for GuideLLM runs constrained only by
 not provide a safe workload-duration estimate. Inspect the timeout message and
 `benchmark.log` path it prints.
 
-GuideLLM counts completed, errored, and cancelled requests as processed. A
-throughput run can therefore exit while vLLM still appears busy. Until strict
-completion and server-drain checks are implemented, confirm `request_totals` in
-`results.json`, compare requested and observed output-token counts, and inspect
-both `benchmark.log` and `vllm.log` before trusting a long-generation result.
+Request-count GuideLLM and vLLM Bench Serve runs are rejected unless their
+normalized totals show every expected request completed successfully. vLLM
+must also drain its running and waiting queues before the trial is accepted.
+Inspect `results.json`, `drain.json`, `benchmark.log`, and `vllm.log` when that
+gate fails. For long generations, still compare requested and observed output
+tokens because request completion does not independently prove output length.
 
 ## TPE trials are fewer than requested
 

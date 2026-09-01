@@ -36,13 +36,24 @@ class QualitySummary:
 
 
 class ScoringManager:
-    def __init__(self, metric: str) -> None:
+    def __init__(
+        self, metric: str, minimum_repeats: int = 1,
+        required_runs: tuple[str, ...] = (),
+    ) -> None:
         if not metric.strip():
             raise ValueError("optimization.maximize must not be empty")
+        if (not isinstance(minimum_repeats, int) or isinstance(minimum_repeats, bool)
+                or minimum_repeats < 1):
+            raise ValueError("minimum repeats must be positive")
         self.metric = metric
+        self.minimum_repeats = minimum_repeats
+        self.required_runs = required_runs
 
     def score(self, results: tuple[BenchmarkResult, ...]) -> float | None:
-        values = tuple(self.score_each(results).values())
+        scores = self.score_each(results)
+        if self.required_runs and any(name not in scores for name in self.required_runs):
+            return None
+        values = tuple(scores.values())
         return fmean(values) if values else None
 
     def score_each(self, results: tuple[BenchmarkResult, ...]) -> dict[str, float]:
@@ -52,7 +63,8 @@ class ScoringManager:
                       if (value := _metric_value(workload.metrics.get(self.metric))) is not None]
             if values:
                 grouped.setdefault(result.run_name, []).append(fmean(values))
-        return {name: float(median(values)) for name, values in grouped.items()}
+        return {name: float(median(values)) for name, values in grouped.items()
+                if len(values) >= self.minimum_repeats}
 
     @staticmethod
     def rank(scores: list[TrialScore]) -> tuple[TrialScore, ...]:
@@ -108,4 +120,4 @@ def _count(value: object) -> int:
 def _eligible(metrics: Mapping[str, object]) -> bool:
     successful, errored, incomplete = _request_counts(metrics)
     total = successful + errored + incomplete
-    return total == 0 or (errored + incomplete) / total <= 0.5
+    return total > 0 and errored == 0 and incomplete == 0

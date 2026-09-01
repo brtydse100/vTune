@@ -137,8 +137,9 @@ exposes normalized metrics to scoring and reports.
 Set `benchmark.warmup_repeats` to discard initial measurements and
 `benchmark.min_repeats` to require enough measured repeats for ranking. The
 default minimum is 1 for backward compatibility; use 2 or more for confidence
-intervals. Set `analysis.drift_threshold` to change the sequential finalist
-rerun threshold (default 0.05).
+intervals. Every configured run must meet the minimum with clean request totals
+or the trial is not ranked. Set `analysis.drift_threshold` to change the
+sequential finalist rerun threshold (default 0.05).
 
 Every supported profile, constraint, request format, and dataset form has a
 copyable examples in [benchmark configuration](benchmarking.md). See the
