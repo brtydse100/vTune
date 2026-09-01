@@ -1,6 +1,6 @@
 # Configuration
 
-vLLM Config Tuner keeps server settings separate from benchmark workloads so every server
+vLLM Optimizer keeps server settings separate from benchmark workloads so every server
 configuration can be compared under the same demand.
 
 ## Model and server
@@ -25,8 +25,8 @@ env:
   CUDA_VISIBLE_DEVICES: "0,1"
 ```
 
-Unknown vLLM flags are intentionally allowed. The `vtune` CLI renders keys as CLI flags,
-which keeps new vLLM options usable without a vLLM Config Tuner release.
+Unknown vLLM flags are intentionally allowed. The `vllm-opt` CLI renders keys as CLI flags,
+which keeps new vLLM options usable without a vLLM Optimizer release.
 
 The complete configuration is validated before a run directory or process is
 created. This includes nested benchmark options, search values, ports, GPU
@@ -115,7 +115,7 @@ execution:
     max: 8199
 ```
 
-GPU sets must not overlap. The `vtune` CLI assigns `CUDA_VISIBLE_DEVICES` and one stable
+GPU sets must not overlap. The `vllm-opt` CLI assigns `CUDA_VISIBLE_DEVICES` and one stable
 port to each worker, so do not configure either yourself in parallel mode.
 `max_parallel_trials` must equal the declared worker count, and every trial's
 `tensor-parallel-size` must fit at least one worker. The baseline runs alone
@@ -123,7 +123,7 @@ first; tuned trials then run concurrently. See
 [parallel trials](parallel-trials.md) for scheduling and measurement rules.
 
 For sequential execution, including one vLLM server using tensor parallelism
-across several GPUs, the `vtune` CLI always passes a concrete port. It defaults to 8000;
+across several GPUs, the `vllm-opt` CLI always passes a concrete port. It defaults to 8000;
 set `server.port` only when another port is required.
 
 ## Benchmark runs
@@ -131,8 +131,15 @@ set `server.port` only when another port is required.
 `benchmark.engine` selects `guidellm` (default) or `vllm`. A single trial may
 contain several benchmark runs, but they all evaluate the same running server
 configuration. GuideLLM runs use `profile`, `constraints`, and `data`; vLLM
-Bench Serve runs use `args`. The `vtune` CLI preserves raw JSON and `benchmark.log`, then
+Bench Serve runs use `args`. The `vllm-opt` CLI preserves raw JSON and `benchmark.log`, then
 exposes normalized metrics to scoring and reports.
+
+Set `benchmark.warmup_repeats` to discard initial measurements and
+`benchmark.min_repeats` to require enough measured repeats for ranking. The
+default minimum is 1 for backward compatibility; use 2 or more for confidence
+intervals. Every configured run must meet the minimum with clean request totals
+or the trial is not ranked. Set `analysis.drift_threshold` to change the
+sequential finalist rerun threshold (default 0.05).
 
 Every supported profile, constraint, request format, and dataset form has a
 copyable examples in [benchmark configuration](benchmarking.md). See the
@@ -151,5 +158,12 @@ timeouts:
 Logging levels match GuideLLM: `DEBUG`, `INFO`, `WARNING`, `ERROR`, and
 `CRITICAL`. Both timeouts accept seconds or values such as `30s`, `15m`, and
 `1h`. For GuideLLM, omitting `timeouts.benchmark` derives it from the duration
-constraint plus a safety margin. vLLM Bench Serve uses a 180-second default
-when no explicit timeout is provided. The literal value `auto` is not accepted.
+constraint plus a safety margin. A run constrained only by `max_requests` uses
+a documented one-hour hard cap when no explicit timeout is provided; set
+`timeouts.benchmark` explicitly for longer workloads. vLLM Bench Serve uses a
+180-second default when no explicit timeout is provided. The literal value
+`auto` is not accepted.
+
+After each benchmark, vLLM Optimizer polls vLLM's running and waiting request metrics.
+`execution.drain_grace` controls this drain window and defaults to 15 seconds.
+It must be positive. Missing metrics or a server that remains busy fails the trial.

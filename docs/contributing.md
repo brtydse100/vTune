@@ -1,8 +1,8 @@
 # Contributing
 
-vLLM Config Tuner favors small, typed modules with explicit ownership boundaries. Start by
+vLLM Optimizer favors small, typed modules with explicit ownership boundaries. Start by
 reading the [architecture](ARCHITECTURE.md) and the repository's
-[`CONTRIBUTING.md`](https://github.com/brtydse100/vllm-config-tuner/blob/main/CONTRIBUTING.md).
+[`CONTRIBUTING.md`](https://github.com/brtydse100/vllm-optimizer/blob/main/CONTRIBUTING.md).
 
 Common extension points are separated by responsibility:
 
@@ -11,6 +11,7 @@ Common extension points are separated by responsibility:
 - search sessions propose unique configurations;
 - reporting code converts stored results into human-readable exports.
 
-Keep implementations simple, update user-facing documentation, and follow the
-project's private-test policy. Public pull requests must not add tests, fixtures,
-snapshots, or expected-result files to the repository.
+Keep implementations simple and update user-facing documentation. The public
+behavioral suite under `tests/` uses only synthetic data and temporary files;
+private regression tests may remain outside the checkout when they require
+models, hardware, or private fixtures.

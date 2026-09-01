@@ -1,4 +1,4 @@
-# vTune Project Rules
+# vLLM Optimizer Project Rules
 
 ## Workflow and approval
 
@@ -33,8 +33,9 @@
 ## Testing and security
 
 - Every implementation stage and behavior must have tests.
-- Tests, fixtures, snapshots, and expected results must not be committed to the
-  public project repository.
+- Public tests, fixtures, snapshots, and expected results are allowed only when
+  they contain no models, secrets, GPU data, or private fixtures. Keep sensitive
+  regression tests outside the repository.
 - Keep the test suite in a private location outside the repository.
 - Run relevant private tests after every change.
 - Run broader regression checks when shared behavior is affected.

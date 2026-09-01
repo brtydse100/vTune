@@ -1,7 +1,11 @@
-"""vTune package."""
+"""Compatibility alias for the former :mod:`vtune` package."""
 
-__version__ = "0.1.0a9"
+from __future__ import annotations
 
-from .orchestrator import Orchestrator, RunOutcome
+import vllm_optimizer as _canonical
+from vllm_optimizer import Orchestrator, RunOutcome, __version__
+
+# Keep legacy submodule imports working for one deprecation cycle.
+__path__ = _canonical.__path__
 
 __all__ = ["Orchestrator", "RunOutcome"]

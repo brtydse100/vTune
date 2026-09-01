@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vtune"
-version = "0.1.0a9"
-description = "Benchmark-driven configuration tuning for vLLM inference servers"
+name = "vllm-optimizer"
+version = "0.1.0a11"
+description = "Benchmark-driven configuration optimization for vLLM inference servers"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -24,13 +24,15 @@ dependencies = ["Optuna>=4.0,<5", "PyYAML>=6.0"]
 
 [project.optional-dependencies]
 runtime = ["vllm>=0.28,<0.29", "guidellm>=0.7.3,<0.8"]
+test = ["pytest>=8,<9"]
 
 [project.urls]
-Repository = "https://github.com/brtydse100/vllm-config-tuner"
-Issues = "https://github.com/brtydse100/vllm-config-tuner/issues"
+Repository = "https://github.com/brtydse100/vllm-optimizer"
+Issues = "https://github.com/brtydse100/vllm-optimizer/issues"
 
 [project.scripts]
-vtune = "vtune.cli:main"
+vllm-opt = "vllm_optimizer.cli:main"
+vtune = "vllm_optimizer.cli:legacy_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

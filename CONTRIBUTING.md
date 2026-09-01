@@ -1,6 +1,6 @@
-# Contributing to vLLM Config Tuner
+# Contributing to vLLM Optimizer
 
-vLLM Config Tuner favors small, explicit components over framework-heavy abstractions.
+vLLM Optimizer favors small, explicit components over framework-heavy abstractions.
 Read [the architecture](docs/ARCHITECTURE.md) before changing execution flow.
 
 All contributions go through a pull request. Direct pushes and force pushes to
@@ -15,14 +15,19 @@ NVIDIA GPU with working `vllm` and `guidellm` commands.
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-pip install -e .
-vtune --help
+pip install -e ".[test]"
+vllm-opt --help
 ```
 
-The public repository intentionally does not contain tests. Maintainers run a
-private suite outside the checkout. Contributors should describe how they
-verified a change and must not treat passing tests as a substitute for source
-review.
+The repository contains deterministic behavioral tests that use no models,
+secrets, GPU data, or private fixtures. Run them before opening a pull request:
+
+```bash
+python -m pytest -q tests
+```
+
+Maintainers may keep additional regression tests outside the checkout when
+they require private fixtures or hardware. Tests do not replace source review.
 
 ## Where changes belong
 
@@ -61,8 +66,9 @@ servers or benchmarks and must label exploratory statistics honestly.
   generated or vendored.
 - Preserve immutable completed runs and owned-process cleanup.
 - Keep documentation synchronized with user-visible behavior.
-- Never commit tests, fixtures, snapshots, credentials, model files, run
-  artifacts, virtual environments, or generated packages.
+- Commit only deterministic tests and fixtures that contain no credentials,
+  model files, GPU data, private artifacts, or secrets. Keep sensitive
+  regression tests outside the checkout.
 
 ## Before submitting
 
@@ -71,6 +77,6 @@ servers or benchmarks and must label exploratory statistics honestly.
    changed.
 3. Build and install the wheel in a fresh environment.
 4. Run a real GPU smoke test for lifecycle or benchmark changes.
-5. Confirm no `vtune`-owned process remains and no private artifact is tracked.
+5. Confirm no `vllm-opt`-owned process remains and no private artifact is tracked.
 6. Update README, MVP specification, architecture, or roadmap when behavior or
    an extension point changed.
