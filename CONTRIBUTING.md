@@ -15,14 +15,19 @@ NVIDIA GPU with working `vllm` and `guidellm` commands.
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-pip install -e .
+pip install -e ".[test]"
 vtune --help
 ```
 
-The public repository intentionally does not contain tests. Maintainers run a
-private suite outside the checkout. Contributors should describe how they
-verified a change and must not treat passing tests as a substitute for source
-review.
+The repository contains deterministic behavioral tests that use no models,
+secrets, GPU data, or private fixtures. Run them before opening a pull request:
+
+```bash
+python -m pytest -q tests
+```
+
+Maintainers may keep additional regression tests outside the checkout when
+they require private fixtures or hardware. Tests do not replace source review.
 
 ## Where changes belong
 
@@ -61,8 +66,9 @@ servers or benchmarks and must label exploratory statistics honestly.
   generated or vendored.
 - Preserve immutable completed runs and owned-process cleanup.
 - Keep documentation synchronized with user-visible behavior.
-- Never commit tests, fixtures, snapshots, credentials, model files, run
-  artifacts, virtual environments, or generated packages.
+- Commit only deterministic tests and fixtures that contain no credentials,
+  model files, GPU data, private artifacts, or secrets. Keep sensitive
+  regression tests outside the checkout.
 
 ## Before submitting
 

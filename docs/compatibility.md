@@ -1,18 +1,35 @@
 # Compatibility
 
-vLLM Config Tuner targets Python 3.11–3.12 and Linux experiment hosts with NVIDIA GPUs.
+vLLM Config Tuner targets Python 3.11–3.12 and native Linux experiment hosts
+with NVIDIA GPUs. This page records dated evidence rather than promising that
+every vLLM/CUDA combination works.
 
-Verified combinations:
+## Validation matrix
 
-| vLLM | GuideLLM | Environment |
-| --- | --- | --- |
-| 0.28.0 | 0.7.3 | WSL2, RTX 3080 |
+The required L40 and H100 native-Linux runs need dedicated hosts and are not
+available in this workspace. They remain explicitly unvalidated:
 
-Both GuideLLM 0.7.3 and `vllm bench serve` from vLLM 0.28.0 are supported.
-Workload arguments are passed through, so consult the documentation for the
-installed engine version when adopting newer options.
+| Date | GPU | GPUs | Mode | Driver / CUDA | Python | vLLM / GuideLLM | Model | Outcome |
+| --- | --- | ---: | --- | --- | --- | --- | --- | --- |
+| 2026-09-01 | L40 | 1 | native Linux | — | — | — | — | Not run: host unavailable |
+| 2026-09-01 | L40 | 2+ | tensor parallel | — | — | — | — | Not run: host unavailable |
+| 2026-09-01 | H100 | 1 | native Linux | — | — | — | — | Not run: host unavailable |
+| 2026-09-01 | H100 | 2+ | tensor parallel | — | — | — | — | Not run: host unavailable |
+| 2026-09-01 | RTX 3080 | 1 | WSL2 attempt | 596.36 / CUDA 13.2 | 3.12.3 | 0.28.0 / 0.7.3 | facebook/opt-125m | Failed: vLLM reports `UVA is not available` |
 
-On the verified WSL2 host, vLLM 0.28.0 needed these server environment values:
+The RTX 3080 row is an environment diagnostic, not a supported native-Linux
+validation. It was attempted with explicit port 8000 and a single GPU; no
+benchmark results were accepted.
+
+The matrix still needs evidence for explicit ports, interruption cleanup, long
+generation, and at least one multi-GPU run on each supported native-Linux GPU.
+
+Both GuideLLM 0.7.3 and `vllm bench serve` from vLLM 0.28.0 are the versions
+used by the reproducibility procedure. Workload arguments are passed through,
+so consult the documentation for the installed engine version when adopting
+newer options.
+
+On the WSL2 attempt, vLLM 0.28.0 also exposed these optional server settings:
 
 ```yaml
 env:

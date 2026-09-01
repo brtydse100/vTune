@@ -171,8 +171,9 @@ optimization:
 
 timeouts:
   startup: 15m    # Default: 15 minutes. Numeric seconds also work.
-  # benchmark: 20m  # Optional explicit limit per GuideLLM invocation.
-  # Omit benchmark to derive it from max_duration plus a safety margin.
+  benchmark: 20m  # Explicit limit; request-only runs otherwise use a 1h cap.
+  # Omit benchmark when GuideLLM duration is bounded or the 1h cap is enough.
+  # vLLM keeps its 180-second default.
   # The old literal value `auto` is intentionally invalid.
 
 execution:

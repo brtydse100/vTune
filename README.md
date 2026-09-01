@@ -87,6 +87,8 @@ optimization:
   maximize: output_tokens_per_second
   sampler: tpe
   trials: 2
+timeouts:
+  benchmark: 20m
 ```
 
 Run it:

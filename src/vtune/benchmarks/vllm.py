@@ -55,6 +55,8 @@ def parse_result(path: Path, run_name: str) -> BenchmarkResult:
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise ValueError(f"Cannot read vLLM benchmark JSON result: {error}") from error
     metrics = normalize_vllm_metrics(document)
+    if isinstance(document.get("num_prompts"), int) and not isinstance(document.get("num_prompts"), bool):
+        metrics["request_total"] = document["num_prompts"]
     configuration = {key: document[key] for key in (
         "backend", "model_id", "num_prompts", "request_rate", "burstiness",
         "max_concurrency", "dataset_name",

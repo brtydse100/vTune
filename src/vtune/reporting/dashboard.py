@@ -14,6 +14,7 @@ from vtune.reporting.context import ReportContext
 from vtune.reporting.benchmark_details import benchmark_details_table
 from vtune.reporting.importance import importance_section
 from vtune.reporting.methodology import metric_methodology
+from vtune.reporting.measurement import measurement_section
 from vtune.reporting.styles import dashboard_css
 from vtune.reporting.tables import (
     benchmark_table, changes_table, evidence_table, failures, metrics_table, ranking_table,
@@ -77,6 +78,7 @@ Request quality: {escape(quality)}.</p>{changes_table(best, baseline)}
     <p class='note'>Each row is one workload from one benchmark execution. Elapsed time is measured independently by vTune.</p>
     {benchmark_details_table(best_report)}</section>
     {metric_methodology()}
+{measurement_section(trials, metric, context.minimum_repeats, context.drift_threshold)}
 {_llm_section(context)}
 <section><h2>Evidence behind the ranking</h2>{evidence_table(ranking)}
 <p class='note'>A workload is excluded from score calculation when more than half of its requests

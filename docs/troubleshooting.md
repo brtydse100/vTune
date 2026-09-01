@@ -25,9 +25,9 @@ reaches a worker, report the YAML and the first error line as a bug.
 ## Benchmark times out
 
 Set an explicit duration such as `30m` for GuideLLM runs constrained only by
-`max_requests`. Without `max_duration`, the current automatic limit is three
-minutes and is not suitable for long-generation models. Inspect the timeout
-message and `benchmark.log` path it prints.
+`max_requests` when the one-hour hard cap is insufficient. Request count does
+not provide a safe workload-duration estimate. Inspect the timeout message and
+`benchmark.log` path it prints.
 
 GuideLLM counts completed, errored, and cancelled requests as processed. A
 throughput run can therefore exit while vLLM still appears busy. Until strict

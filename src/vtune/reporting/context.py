@@ -19,3 +19,5 @@ class ReportContext:
     benchmark_names: tuple[str, ...] = ()
     llm_summary: str | None = None
     llm_summary_error: str | None = None
+    minimum_repeats: int = 2
+    drift_threshold: float = 0.05

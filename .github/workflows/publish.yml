@@ -27,10 +27,15 @@ jobs:
       - run: python -m pip install --upgrade build twine
       - run: python -m build
       - run: python -m twine check dist/*
+      - run: python -m pip install pytest cyclonedx-bom
+      - run: python -m pytest -q tests
+      - run: cyclonedx-py environment --output-format json --output-file sbom.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-package-distributions
-          path: dist/
+          path: |
+            dist/
+            sbom.json
           if-no-files-found: error
 
   publish:
@@ -47,4 +52,7 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "dist/*"
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1

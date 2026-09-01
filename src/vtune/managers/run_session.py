@@ -42,6 +42,22 @@ class RunAccumulator:
                 score.excluded_workloads if score else 0,
             ))
 
+    def replace(
+        self, parameters: TrialParameters, report: TrialReport,
+        score: TrialScore | None, by_benchmark: Mapping[str, float],
+    ) -> None:
+        """Replace an initial result with its sequential finalist validation."""
+        if not any(item.trial_id == parameters.trial_id for item in self.reports):
+            raise ValueError(f"cannot validate unknown trial '{parameters.trial_id}'")
+        self.reports = [item for item in self.reports if item.trial_id != parameters.trial_id]
+        self.scores = [item for item in self.scores if item.trial_id != parameters.trial_id]
+        for name in self._benchmark_scores:
+            self._benchmark_scores[name] = [
+                item for item in self._benchmark_scores[name]
+                if item.trial_id != parameters.trial_id
+            ]
+        self.record(parameters, report, score, by_benchmark)
+
     @property
     def ranking(self) -> tuple[TrialScore, ...]:
         return self._scoring.rank(self.scores)

@@ -206,8 +206,10 @@ positive duration. Durations accept seconds or strings such as
 `30s`, `2m`, and `1h`.
 
 When `timeouts.benchmark` is omitted, the `vtune` CLI uses the GuideLLM duration
-constraint, workload strategy count, and a safety margin. Without a duration
-constraint it defaults to 180 seconds. The literal value `auto` is invalid.
+constraint, workload strategy count, and a safety margin. A GuideLLM run
+constrained only by `max_requests` uses a one-hour hard cap when no explicit
+timeout is provided; set `timeouts.benchmark` for longer workloads. vLLM Bench
+Serve retains its 180-second default. The literal value `auto` is invalid.
 
 `execution.retry.max_attempts` defaults to one. Only failures marked retryable
 are attempted again. Startup and benchmark timeouts and recognized connection

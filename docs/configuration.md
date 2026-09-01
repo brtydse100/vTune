@@ -134,6 +134,12 @@ configuration. GuideLLM runs use `profile`, `constraints`, and `data`; vLLM
 Bench Serve runs use `args`. The `vtune` CLI preserves raw JSON and `benchmark.log`, then
 exposes normalized metrics to scoring and reports.
 
+Set `benchmark.warmup_repeats` to discard initial measurements and
+`benchmark.min_repeats` to require enough measured repeats for ranking. The
+default minimum is 1 for backward compatibility; use 2 or more for confidence
+intervals. Set `analysis.drift_threshold` to change the sequential finalist
+rerun threshold (default 0.05).
+
 Every supported profile, constraint, request format, and dataset form has a
 copyable examples in [benchmark configuration](benchmarking.md). See the
 [complete YAML](full-example.md) for all configuration sections together.
@@ -151,5 +157,12 @@ timeouts:
 Logging levels match GuideLLM: `DEBUG`, `INFO`, `WARNING`, `ERROR`, and
 `CRITICAL`. Both timeouts accept seconds or values such as `30s`, `15m`, and
 `1h`. For GuideLLM, omitting `timeouts.benchmark` derives it from the duration
-constraint plus a safety margin. vLLM Bench Serve uses a 180-second default
-when no explicit timeout is provided. The literal value `auto` is not accepted.
+constraint plus a safety margin. A run constrained only by `max_requests` uses
+a documented one-hour hard cap when no explicit timeout is provided; set
+`timeouts.benchmark` explicitly for longer workloads. vLLM Bench Serve uses a
+180-second default when no explicit timeout is provided. The literal value
+`auto` is not accepted.
+
+After each benchmark, vTune polls vLLM's running and waiting request metrics.
+`execution.drain_grace` controls this drain window and defaults to 15 seconds.
+It must be positive. Missing metrics or a server that remains busy fails the trial.

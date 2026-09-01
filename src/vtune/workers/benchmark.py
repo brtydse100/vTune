@@ -23,24 +23,29 @@ class GuideLLMBenchmarkWorker:
     def __init__(
         self, config: VTuneConfig, run: Mapping[str, object], runner: ProcessRunner,
         artifacts: Path, timeout: float = 180, shutdown_grace: float = 5,
-        repeat_index: int | None = None,
+        repeat_index: int | None = None, warmup_index: int | None = None,
     ) -> None:
         if timeout <= 0 or shutdown_grace < 0:
             raise ValueError("benchmark timeout must be positive and grace non-negative")
         self._config, self._run, self._runner = config, run, runner
+        if repeat_index is not None and warmup_index is not None:
+            raise ValueError("benchmark repeat and warmup cannot both be set")
         self._artifacts, self._timeout = Path(artifacts), timeout
         self._shutdown_grace = shutdown_grace
         self._run_name = str(run.get("name", "invalid"))
         self._repeat_index = repeat_index
+        self._warmup_index = warmup_index
 
     @property
     def name(self) -> str:
-        suffix = f":repeat-{self._repeat_index}" if self._repeat_index else ""
+        suffix = (f":warmup-{self._warmup_index}" if self._warmup_index
+                  else f":repeat-{self._repeat_index}" if self._repeat_index else "")
         return f"guidellm_benchmark:{self._run_name}{suffix}"
 
     @property
     def _ownership_key(self) -> str:
-        return f"_guidellm_owned_process_{self._run_name}_{self._repeat_index or 'single'}"
+        phase = f"warmup-{self._warmup_index}" if self._warmup_index else f"repeat-{self._repeat_index or 'single'}"
+        return f"_guidellm_owned_process_{self._run_name}_{phase}"
 
     async def execute(self, context: TrialContext) -> WorkerResult[None]:
         endpoint = context.values.get("server_endpoint")
@@ -48,7 +53,9 @@ class GuideLLMBenchmarkWorker:
             return self._failed("benchmark_endpoint_missing", "Missing server endpoint")
         try:
             artifacts = attempt_directory(self._artifacts, context)
-            if self._repeat_index:
+            if self._warmup_index:
+                artifacts = artifacts / "warmups" / f"{self._warmup_index:03d}"
+            elif self._repeat_index:
                 artifacts = artifacts / "repeats" / f"{self._repeat_index:03d}"
             plan = build_plan(self._config, self._run, endpoint, artifacts)
             plan.directory.mkdir(parents=True, exist_ok=True)
@@ -69,7 +76,9 @@ class GuideLLMBenchmarkWorker:
         except Exception as error:
             return self._failed("benchmark_launch_failed", str(error))
         context.values[self._ownership_key] = process
-        prefix = f"benchmark_{plan.run_name}" + (f"_repeat_{self._repeat_index}" if self._repeat_index else "")
+        suffix = (f"_warmup_{self._warmup_index}" if self._warmup_index
+                  else f"_repeat_{self._repeat_index}" if self._repeat_index else "")
+        prefix = f"benchmark_{plan.run_name}{suffix}"
         context.artifacts[f"{prefix}_log"] = str(plan.log_path)
         try:
             returncode = await asyncio.wait_for(process.wait(), timeout=self._timeout)
@@ -95,14 +104,20 @@ class GuideLLMBenchmarkWorker:
             return WorkerResult.failed(classified_failure(
                 plan.log_path, "benchmark_result_invalid", str(error)
             ))
-        if not _completed_requests(result):
+        has_request_limit, expected_requests = _max_requests(self._run)
+        if has_request_limit:
+            failure = _request_count_failure(result, expected_requests)
+            if failure is not None:
+                return WorkerResult.failed(failure)
+        elif not _completed_requests(result):
             return WorkerResult.failed(Failure(
                 "benchmark_no_completed_requests",
                 f"GuideLLM exited without completed requests for '{plan.run_name}'; "
                 f"vLLM may still have pending work. Inspect benchmark log: {plan.log_path}",
             ))
         previous = context.values.get("benchmark_results", ())
-        context.values["benchmark_results"] = (*previous, result)
+        if self._warmup_index is None:
+            context.values["benchmark_results"] = (*previous, result)
         context.artifacts[f"{prefix}_json"] = str(plan.json_path)
         return WorkerResult.completed()
 
@@ -131,3 +146,60 @@ def _completed_requests(result: object) -> bool:
         if isinstance(totals.get("successful"), int) and totals["successful"] > 0:
             return True
     return False
+
+
+def _max_requests(run: Mapping[str, object]) -> tuple[bool, int | None]:
+    constraints = run.get("constraints", [])
+    if not isinstance(constraints, list):
+        return False, None
+    for constraint in constraints:
+        if isinstance(constraint, Mapping) and constraint.get("kind") == "max_requests":
+            count = constraint.get("count")
+            valid = (isinstance(count, int) and not isinstance(count, bool) and count > 0)
+            return True, count if valid else None
+    return False, None
+
+
+def _request_count_failure(result: object, expected: int | None) -> Failure | None:
+    if expected is None:
+        return Failure(
+            "benchmark_request_total_missing",
+            "GuideLLM request-count benchmark is missing a positive max_requests count",
+        )
+    workloads = getattr(result, "workloads", ())
+    if not workloads:
+        return Failure(
+            "benchmark_request_total_missing",
+            "GuideLLM result contains no workload metrics; the benchmark cannot be scored safely",
+        )
+    for workload in workloads:
+        metrics = getattr(workload, "metrics", {})
+        totals = metrics.get("request_totals") if isinstance(metrics, Mapping) else None
+        request_total = metrics.get("request_total") if isinstance(metrics, Mapping) else None
+        if (not isinstance(totals, Mapping)
+                or not isinstance(request_total, int)
+                or isinstance(request_total, bool)):
+            return Failure(
+                "benchmark_request_total_missing",
+                "GuideLLM result is missing the normalized request total; "
+                "the benchmark cannot be scored safely",
+            )
+        successful = totals.get("successful")
+        errored = totals.get("errored")
+        incomplete = totals.get("incomplete")
+        if not all(isinstance(value, int) and not isinstance(value, bool)
+                   for value in (successful, errored, incomplete)):
+            return Failure(
+                "benchmark_request_totals_invalid",
+                "GuideLLM result has invalid normalized request totals",
+            )
+        observed = successful + errored + incomplete
+        if (request_total != expected or observed != expected or errored or incomplete
+                or successful != expected):
+            return Failure(
+                "benchmark_requests_incomplete",
+                f"GuideLLM request-count benchmark expected {expected} successful requests; "
+                f"observed {successful} successful, {errored} errored, "
+                f"{incomplete} incomplete, total {request_total}",
+            )
+    return None

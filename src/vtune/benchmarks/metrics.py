@@ -89,12 +89,15 @@ def request_totals(
     successful = _count(source.get("successful", completed))
     errored = _count(source.get("errored", source.get("failed", failed)))
     incomplete = _count(source.get("incomplete"))
-    total = _count(source.get("total", requested))
-    return {
+    result = {
         "successful": successful,
         "errored": errored,
-        "incomplete": max(incomplete, total - successful - errored),
+        "incomplete": incomplete,
     }
+    total = _optional_count(source.get("total", requested))
+    if total is not None:
+        result["incomplete"] = max(incomplete, total - successful - errored)
+    return result
 
 
 def _vllm_latency(raw: Mapping[str, object], stem: str) -> dict[str, float]:
@@ -113,3 +116,7 @@ def _number(value: object) -> float | None:
 
 def _count(value: object) -> int:
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
+
+
+def _optional_count(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None

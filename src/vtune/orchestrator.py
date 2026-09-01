@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
 
-from vtune.benchmarks.configuration import configured_runs
+from vtune.benchmarks.configuration import configured_min_repeats, configured_runs
 from vtune.config.models import VTuneConfig
 from vtune.config.preflight import validate_config
 from vtune.config.runtime import baseline_enabled, logging_level, maximize_metric
@@ -24,6 +24,7 @@ from vtune.terminal import TerminalLogger
 from vtune.reporting import Reporter
 from vtune.reporting.context import ReportContext
 from vtune.reporting.llm_summary import summarize
+from vtune.execution.finalist_validation import validate_drifted_finalists
 from vtune.reproduction.manifest import ManifestWriter
 from vtune.reproduction.metadata import collect_metadata
 @dataclass(frozen=True, slots=True)
@@ -91,6 +92,8 @@ class Orchestrator:
             "Output": directory.resolve(),
         })
         interrupted = False
+        parameters_by_id: dict[str, TrialParameters] = {}
+        slots_by_id: dict[str, WorkerSlot | None] = {}
         if self._retry_trials is None and baseline_enabled(self._config):
             self._terminal.baseline()
             parameters = TrialParameters("baseline", {}, {})
@@ -129,6 +132,8 @@ class Orchestrator:
             if interrupted:
                 break
             position, parameters = completed.position, completed.parameters
+            parameters_by_id[parameters.trial_id] = parameters
+            slots_by_id[parameters.trial_id] = completed.slot
             owner = (f"[{completed.slot.name}][{parameters.trial_id}] "
                      if completed.slot else "")
             report, score, scores_by_benchmark = completed.value
@@ -152,6 +157,13 @@ class Orchestrator:
             if report.status is WorkerStatus.INTERRUPTED:
                 interrupted = True
                 break
+        if not interrupted:
+            await validate_drifted_finalists(
+                directory, session, results, run_id, started_at, self._metric,
+                float(self._config.analysis.get("drift_threshold", 0.05)),
+                parameters_by_id, slots_by_id, self._run_trial, self._terminal.warning,
+                self._source_run_id, self._sources,
+            )
         status = run_status(tuple(session.reports))
         completed_at = datetime.now(timezone.utc).isoformat()
         reports, ranking = tuple(session.reports), session.ranking
@@ -159,8 +171,12 @@ class Orchestrator:
         llm_summary, llm_error = await summarize(self._config, self._metric, ranking)
         if llm_error:
             self._terminal.warning(llm_error)
-        report_context = ReportContext(run_id, status, started_at, completed_at,
-            self._source_run_id, self._sources, by_benchmark, mode, names, llm_summary, llm_error)
+        report_context = ReportContext(
+            run_id, status, started_at, completed_at, self._source_run_id, self._sources,
+            by_benchmark, mode, names, llm_summary, llm_error,
+            configured_min_repeats(self._config),
+            float(self._config.analysis.get("drift_threshold", 0.05)),
+        )
         session.persist(results, run_id, self._metric, status, started_at, completed_at,
                         self._source_run_id, self._sources, llm_summary)
         Reporter(directory).write(
@@ -174,8 +190,10 @@ class Orchestrator:
 
     async def _run_trial(
         self, directory: Path, parameters: TrialParameters,
-        slot: WorkerSlot | None = None,
+        slot: WorkerSlot | None = None, artifact_subdirectory: str | None = None,
     ) -> tuple[TrialReport, TrialScore | None, dict[str, float]]:
         if self._trial_executor is None:
             raise RuntimeError("trial executor is not initialized")
-        return await self._trial_executor.execute(directory, parameters, slot)
+        return await self._trial_executor.execute(
+            directory, parameters, slot, artifact_subdirectory,
+        )

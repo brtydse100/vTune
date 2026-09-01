@@ -4,6 +4,15 @@ Set `benchmark.engine` to `guidellm` (the default) or `vllm`. Each run invokes
 the selected engine against the same vLLM trial. vLLM Config Tuner saves raw
 JSON and `benchmark.log`, then normalizes the result for scoring and reporting.
 
+Use `benchmark.warmup_repeats` for measured-but-discarded requests before each
+benchmark repeat. Set `benchmark.repeats` to at least `benchmark.min_repeats`
+for a ranking with the configured confidence policy; the default minimum is 1
+for compatibility. Reports show sample variance, an approximate 95% confidence
+interval, and flag sequential drift above `analysis.drift_threshold` (5% by
+default). The top two flagged finalists are automatically rerun sequentially
+before a winner is recommended; validation artifacts are stored under
+`validation-001`.
+
 Both adapters expose the same canonical fields: requests/s, output and total
 tokens/s, TTFT, TPOT, ITL, end-to-end latency, and successful/errored/incomplete
 request totals. Statistical metrics use `average`, `median`, and `p99`. Values
@@ -148,6 +157,11 @@ constraints:
 ```
 
 Constraints can be combined and are passed through to GuideLLM.
+
+A GuideLLM run constrained only by `max_requests` uses a one-hour hard cap when
+`timeouts.benchmark` is omitted. Set it explicitly for longer workloads. A
+request count does not provide a safe workload-duration estimate;
+duration-constrained runs can use the derived timeout instead.
 
 `max_requests` is a stopping condition, not a request-serialization setting.
 Throughput, constant, and poisson profiles may issue requests concurrently;

@@ -34,9 +34,11 @@ class TrialExecutor:
 
     async def execute(
         self, directory: Path, parameters: TrialParameters,
-        slot: WorkerSlot | None = None,
+        slot: WorkerSlot | None = None, artifact_subdirectory: str | None = None,
     ) -> tuple[TrialReport, TrialScore | None, dict[str, float]]:
         trial_dir = directory / "trials" / parameters.trial_id
+        if artifact_subdirectory:
+            trial_dir /= artifact_subdirectory
         context = TrialContext(parameters.trial_id)
         context.execution["mode"] = execution_mode(self._config)
         if slot:
@@ -48,7 +50,7 @@ class TrialExecutor:
         scope = f"[{slot.name}][{parameters.trial_id}]" if slot else None
         def progress(event: str, name: str) -> None:
             self._terminal.stage(event, name, scope)
-            if event == "completed" and "_benchmark:" in name:
+            if event == "completed" and "_benchmark:" in name and "warmup" not in name:
                 self._benchmark_progress(name, context)
         outcome = await TrialManager(
             build_trial_workers(self._config, parameters, trial_dir, slot),

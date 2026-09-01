@@ -7,6 +7,7 @@ import re
 
 _DURATION = re.compile(r"^(\d+(?:\.\d+)?)\s*([smh]?)$")
 _UNITS = {"": 1, "s": 1, "m": 60, "h": 3600}
+_REQUEST_COUNT_TIMEOUT = 3600.0
 
 
 def parse_duration(value: object, label: str = "duration") -> float:
@@ -24,9 +25,11 @@ def parse_duration(value: object, label: str = "duration") -> float:
 
 
 def timeout_for_run(run: Mapping[str, object], configured: object = None) -> float:
-    """Return an explicit timeout or estimate duration plus a safety margin."""
+    """Return an explicit timeout or estimate a configured duration safely."""
     if configured is not None:
         return parse_duration(configured, "timeouts.benchmark")
+    if _has_request_constraint(run) and _duration_constraint(run) is None:
+        return _REQUEST_COUNT_TIMEOUT
     duration = _duration_constraint(run)
     if duration is None:
         return 180.0
@@ -54,6 +57,13 @@ def _duration_constraint(run: Mapping[str, object]) -> float | None:
                 return sum(parse_duration(item, "max_duration.seconds") for item in seconds)
             return parse_duration(seconds, "max_duration.seconds")
     return None
+
+
+def _has_request_constraint(run: Mapping[str, object]) -> bool:
+    constraints = run.get("constraints", [])
+    return (isinstance(constraints, list)
+            and any(isinstance(item, Mapping) and item.get("kind") == "max_requests"
+                    for item in constraints))
 
 
 def _strategy_count(profile: object) -> int:

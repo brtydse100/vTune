@@ -39,6 +39,8 @@ nav:
       - Benchmarks and datasets: benchmarking.md
       - Search and scoring: search-and-scoring.md
       - Parallel trials: parallel-trials.md
+  - Backend comparison: backend-comparison.md
+  - Release checklist: release-checklist.md
   - Use vLLM Config Tuner:
       - CLI reference: cli.md
       - Reports: reports.md

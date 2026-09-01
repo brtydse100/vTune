@@ -11,6 +11,7 @@ Common extension points are separated by responsibility:
 - search sessions propose unique configurations;
 - reporting code converts stored results into human-readable exports.
 
-Keep implementations simple, update user-facing documentation, and follow the
-project's private-test policy. Public pull requests must not add tests, fixtures,
-snapshots, or expected-result files to the repository.
+Keep implementations simple and update user-facing documentation. The public
+behavioral suite under `tests/` uses only synthetic data and temporary files;
+private regression tests may remain outside the checkout when they require
+models, hardware, or private fixtures.

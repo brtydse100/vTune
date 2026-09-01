@@ -24,6 +24,7 @@ dependencies = ["Optuna>=4.0,<5", "PyYAML>=6.0"]
 
 [project.optional-dependencies]
 runtime = ["vllm>=0.28,<0.29", "guidellm>=0.7.3,<0.8"]
+test = ["pytest>=8,<9"]
 
 [project.urls]
 Repository = "https://github.com/brtydse100/vllm-config-tuner"

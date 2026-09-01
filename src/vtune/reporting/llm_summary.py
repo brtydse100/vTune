@@ -30,9 +30,12 @@ _MAX_RESPONSE_BYTES = 1024 * 1024
 def settings(config: VTuneConfig) -> LLMSettings | None:
     if not config.analysis:
         return None
-    unknown = set(config.analysis) - {"llm_summary"}
+    unknown = set(config.analysis) - {"llm_summary", "drift_threshold"}
     if unknown:
         raise ValueError(f"unknown analysis setting(s): {', '.join(sorted(unknown))}")
+    drift = config.analysis.get("drift_threshold", 0.05)
+    if isinstance(drift, bool) or not isinstance(drift, int | float) or drift < 0:
+        raise ValueError("analysis.drift_threshold must be a non-negative number")
     raw = config.analysis.get("llm_summary")
     if raw is None:
         return None

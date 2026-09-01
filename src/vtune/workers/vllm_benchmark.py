@@ -22,24 +22,29 @@ class VLLMBenchmarkWorker:
     def __init__(
         self, config: VTuneConfig, run: Mapping[str, object], runner: ProcessRunner,
         artifacts: Path, timeout: float = 180, shutdown_grace: float = 5,
-        repeat_index: int | None = None,
+        repeat_index: int | None = None, warmup_index: int | None = None,
     ) -> None:
         if timeout <= 0 or shutdown_grace < 0:
             raise ValueError("benchmark timeout must be positive and grace non-negative")
+        if repeat_index is not None and warmup_index is not None:
+            raise ValueError("benchmark repeat and warmup cannot both be set")
         self._config, self._run, self._runner = config, run, runner
         self._artifacts, self._timeout = Path(artifacts), timeout
         self._shutdown_grace = shutdown_grace
         self._run_name = str(run.get("name", "invalid"))
         self._repeat_index = repeat_index
+        self._warmup_index = warmup_index
 
     @property
     def name(self) -> str:
-        suffix = f":repeat-{self._repeat_index}" if self._repeat_index else ""
+        suffix = (f":warmup-{self._warmup_index}" if self._warmup_index
+                  else f":repeat-{self._repeat_index}" if self._repeat_index else "")
         return f"vllm_benchmark:{self._run_name}{suffix}"
 
     @property
     def _ownership_key(self) -> str:
-        return f"_vllm_bench_owned_process_{self._run_name}_{self._repeat_index or 'single'}"
+        phase = f"warmup-{self._warmup_index}" if self._warmup_index else f"repeat-{self._repeat_index or 'single'}"
+        return f"_vllm_bench_owned_process_{self._run_name}_{phase}"
 
     async def execute(self, context: TrialContext) -> WorkerResult[None]:
         endpoint = context.values.get("server_endpoint")
@@ -47,7 +52,9 @@ class VLLMBenchmarkWorker:
             return self._failed("benchmark_endpoint_missing", "Missing server endpoint")
         try:
             artifacts = attempt_directory(self._artifacts, context)
-            if self._repeat_index:
+            if self._warmup_index:
+                artifacts = artifacts / "warmups" / f"{self._warmup_index:03d}"
+            elif self._repeat_index:
                 artifacts = artifacts / "repeats" / f"{self._repeat_index:03d}"
             plan = build_plan(self._config, self._run, endpoint, artifacts)
             plan.directory.mkdir(parents=True, exist_ok=True)
@@ -68,7 +75,9 @@ class VLLMBenchmarkWorker:
         except Exception as error:
             return self._failed("benchmark_launch_failed", str(error))
         context.values[self._ownership_key] = process
-        prefix = f"benchmark_{plan.run_name}" + (f"_repeat_{self._repeat_index}" if self._repeat_index else "")
+        suffix = (f"_warmup_{self._warmup_index}" if self._warmup_index
+                  else f"_repeat_{self._repeat_index}" if self._repeat_index else "")
+        prefix = f"benchmark_{plan.run_name}{suffix}"
         context.artifacts[f"{prefix}_log"] = str(plan.log_path)
         try:
             returncode = await asyncio.wait_for(process.wait(), timeout=self._timeout)
@@ -94,7 +103,8 @@ class VLLMBenchmarkWorker:
                 plan.log_path, "benchmark_result_invalid", str(error)
             ))
         previous = context.values.get("benchmark_results", ())
-        context.values["benchmark_results"] = (*previous, result)
+        if self._warmup_index is None:
+            context.values["benchmark_results"] = (*previous, result)
         context.artifacts[f"{prefix}_json"] = str(plan.json_path)
         return WorkerResult.completed()
 

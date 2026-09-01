@@ -76,14 +76,21 @@ def parse_result(path: Path, run_name: str) -> BenchmarkResult:
     workloads = tuple(
         WorkloadResult(
             index, _mapping(item.get("config"), f"benchmark {index} config"),
-            normalize_guidellm_metrics(
-                _mapping(item.get("metrics"), f"benchmark {index} metrics")
-            ),
+            _normalized_metrics(_mapping(item.get("metrics"), f"benchmark {index} metrics")),
         )
         for index, value in enumerate(benchmarks)
         for item in (_mapping(value, f"benchmark {index}"),)
     )
     return BenchmarkResult(run_name, "guidellm", version, workloads, source)
+
+
+def _normalized_metrics(raw: Mapping[str, object]) -> dict[str, object]:
+    metrics = normalize_guidellm_metrics(raw)
+    totals = raw.get("request_totals")
+    if (isinstance(totals, Mapping) and isinstance(totals.get("total"), int)
+            and not isinstance(totals.get("total"), bool)):
+        metrics["request_total"] = totals["total"]
+    return metrics
 
 
 def _serialize(values: Mapping[str, object]) -> str:

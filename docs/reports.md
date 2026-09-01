@@ -42,6 +42,11 @@ names and units but does not derive missing percentiles. Eligible workloads are
 averaged within an execution, repeated executions use the median score, and
 named benchmark scores are averaged into the trial score.
 
+When a finalist's sequential repeat means drift beyond `analysis.drift_threshold`
+(5% by default), the top two affected finalists are rerun sequentially before
+the recommendation is finalized. Their validation artifacts are kept under
+`validation-001`; a failed validation removes that candidate from the ranking.
+
 If `analysis.llm_summary` is configured, the report also includes a short
 OpenAI-compatible summary. Its API key is read only from the named environment
 variable and is never persisted. It requires HTTPS except for loopback HTTP.

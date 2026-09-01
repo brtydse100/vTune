@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from vtune.benchmarks.configuration import configured_engine, configured_repeats, configured_runs
+from vtune.benchmarks.configuration import (
+    configured_engine, configured_min_repeats, configured_repeats,
+    configured_runs, configured_warmup_repeats,
+)
 from vtune.benchmarks.guidellm import build_plan as build_guidellm_plan
 from vtune.benchmarks.timing import timeout_for_run
 from vtune.benchmarks.vllm import build_plan as build_vllm_plan
@@ -22,7 +25,7 @@ from vtune.workers.configuration import build_process_spec
 
 _EXECUTION_KEYS = {
     "mode", "max_parallel_trials", "gpu_allocation", "ports", "host",
-    "health_path", "shutdown_grace", "retry",
+    "health_path", "shutdown_grace", "drain_grace", "retry",
 }
 
 
@@ -51,6 +54,8 @@ def _validate(config: VTuneConfig) -> None:
 
     runs = configured_runs(config)
     configured_repeats(config)
+    configured_min_repeats(config)
+    configured_warmup_repeats(config)
     maximize_metric(config)
     validate_search(config)
     port = server_port(config)
@@ -59,6 +64,7 @@ def _validate(config: VTuneConfig) -> None:
     max_attempts(config)
     duration(config.timeouts, "startup", 900)
     positive(config.execution, "shutdown_grace", 15)
+    positive(config.execution, "drain_grace", 15)
 
     slots = worker_slots(config)
     trials = expand_grid(config)
