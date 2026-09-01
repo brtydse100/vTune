@@ -1,8 +1,8 @@
 import asyncio
 from pathlib import Path
 
-from vtune.workers.base import TrialContext
-from vtune.workers.drain import VLLMDrainWorker
+from vllm_optimizer.workers.base import TrialContext
+from vllm_optimizer.workers.drain import VLLMDrainWorker
 
 
 METRICS = """# HELP vllm:num_requests_running running

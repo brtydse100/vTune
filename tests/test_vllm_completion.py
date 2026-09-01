@@ -2,11 +2,11 @@ import asyncio
 import json
 from pathlib import Path
 
-from vtune.config.models import ExperimentConfig, VTuneConfig
-from vtune.domain.results import WorkerStatus
-from vtune.workers.base import TrialContext
-from vtune.workers.process import ProcessSpec
-from vtune.workers.vllm_benchmark import VLLMBenchmarkWorker
+from vllm_optimizer.config.models import ExperimentConfig, VTuneConfig
+from vllm_optimizer.domain.results import WorkerStatus
+from vllm_optimizer.workers.base import TrialContext
+from vllm_optimizer.workers.process import ProcessSpec
+from vllm_optimizer.workers.vllm_benchmark import VLLMBenchmarkWorker
 
 
 class _Process:

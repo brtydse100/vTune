@@ -4,12 +4,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from vtune.benchmarks.guidellm import parse_result as parse_guidellm_result
-from vtune.benchmarks.vllm import parse_result as parse_vllm_result
-from vtune.managers.scoring import ScoringManager, TrialScore
-from vtune.measurement import drifted, summarize
-from vtune.workers.benchmark import _request_count_failure
-from vtune.workers.completion import reported_request_total
+from vllm_optimizer.benchmarks.guidellm import parse_result as parse_guidellm_result
+from vllm_optimizer.benchmarks.vllm import parse_result as parse_vllm_result
+from vllm_optimizer.managers.scoring import ScoringManager, TrialScore
+from vllm_optimizer.measurement import drifted, summarize
+from vllm_optimizer.workers.benchmark import _request_count_failure
+from vllm_optimizer.workers.completion import reported_request_total
 
 
 def test_guidellm_result_is_normalized_without_fabricating_percentiles(tmp_path: Path) -> None:

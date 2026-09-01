@@ -1,4 +1,4 @@
-# vTune Project Rules
+# vLLM Optimizer Project Rules
 
 ## Workflow and approval
 

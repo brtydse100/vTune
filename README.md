@@ -1,17 +1,19 @@
-# vLLM Config Tuner
+# vLLM Optimizer
 
-vLLM Config Tuner is a local-first benchmarking and optimization tool for vLLM
+vLLM Optimizer is a local-first benchmarking and optimization tool for vLLM
 serving configurations. Users define the parameters and workloads they care
-about; the `vtune` CLI manages the server lifecycle, runs repeatable benchmarks,
+about; the `vllm-opt` CLI manages the server lifecycle, runs repeatable benchmarks,
 explores the search space, and reports which configurations performed best.
 
-vLLM Config Tuner is alpha software targeting Linux with NVIDIA GPUs and
-Python 3.11–3.12. The Python distribution, import namespace, and CLI command
-remain `vtune`.
+vLLM Optimizer is alpha software targeting Linux with NVIDIA GPUs and
+Python 3.11–3.12. Install `vllm-optimizer`, import `vllm_optimizer`, and run
+`vllm-opt`. The former `vtune` aliases remain available for one release cycle.
 
-**[Documentation](https://brtydse100.github.io/vllm-config-tuner/)** ·
-**[Quick start](https://brtydse100.github.io/vllm-config-tuner/getting-started/)** ·
-**[PyPI](https://pypi.org/project/vtune/)**
+This independent community project is not affiliated with the vLLM project.
+
+**[Documentation](https://brtydse100.github.io/vllm-optimizer/)** ·
+**[Quick start](https://brtydse100.github.io/vllm-optimizer/getting-started/)** ·
+**[PyPI](https://pypi.org/project/vllm-optimizer/)**
 
 The current code is verified with vLLM 0.28.0 and GuideLLM 0.7.3 on WSL2
 with an RTX 3080. That host required
@@ -37,12 +39,12 @@ Choose the installation that matches what you want to do:
 
 | Goal | Command | Platform |
 | --- | --- | --- |
-| Run complete experiments | `pip install "vtune[runtime]"` | Linux/WSL with NVIDIA GPU |
-| Read configs, results, and reports | `pip install vtune` | Linux, Windows, or macOS |
+| Run complete experiments | `pip install "vllm-optimizer[runtime]"` | Linux/WSL with NVIDIA GPU |
+| Read configs, results, and reports | `pip install vllm-optimizer` | Linux, Windows, or macOS |
 
 The core package intentionally does not install GPU frameworks. The `runtime`
 extra adds vLLM and GuideLLM, which select large PyTorch/CUDA dependencies for
-the machine. See the [installation guide](https://brtydse100.github.io/vllm-config-tuner/installation/)
+the machine. See the [installation guide](https://brtydse100.github.io/vllm-optimizer/installation/)
 for virtual environments, CUDA guidance, and verification commands.
 
 ## Quick start
@@ -53,7 +55,7 @@ then install the complete experiment runtime:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install "vtune[runtime]"
+python -m pip install "vllm-optimizer[runtime]"
 vllm --help
 guidellm --help
 ```
@@ -94,24 +96,24 @@ timeouts:
 Run it:
 
 ```bash
-vtune --config experiment.yaml
+vllm-opt --config experiment.yaml
 ```
 
-The short form is `vtune -c experiment.yaml`. The command validates the file,
+The short form is `vllm-opt -c experiment.yaml`. The command validates the file,
 runs the experiment, persists results, and generates its exports and report.
-The `vtune` CLI binds vLLM to `127.0.0.1` by default. Set `server.host` explicitly
+The `vllm-opt` CLI binds vLLM to `127.0.0.1` by default. Set `server.host` explicitly
 only when the benchmark server must be reachable from another host.
 
 Fixed vLLM flags go directly under `server`; tunable flags use top-level
 `tune`. Fixed and tunable environment variables use `env` and `tune_env`.
-See the [configuration guide](https://brtydse100.github.io/vllm-config-tuner/configuration/)
+See the [configuration guide](https://brtydse100.github.io/vllm-optimizer/configuration/)
 for categorical, boolean, integer-range, float-range, list, and environment
-examples. The [complete YAML](https://brtydse100.github.io/vllm-config-tuner/full-example/)
-and [benchmark guide](https://brtydse100.github.io/vllm-config-tuner/benchmarking/) show
+examples. The [complete YAML](https://brtydse100.github.io/vllm-optimizer/full-example/)
+and [benchmark guide](https://brtydse100.github.io/vllm-optimizer/benchmarking/) show
 every supported control with copyable examples.
 
 To use vLLM's native benchmark, set `benchmark.engine: vllm`. Its `args`
-map directly to `vllm bench serve` flags; the `vtune` CLI supplies the model, server
+map directly to `vllm bench serve` flags; the `vllm-opt` CLI supplies the model, server
 address, and JSON output path:
 
 ```yaml
@@ -133,7 +135,7 @@ standard `NO_COLOR` environment variable to disable color. To stream server and
 benchmark logs:
 
 ```bash
-vtune --config experiment.yaml --verbose
+vllm-opt --config experiment.yaml --verbose
 ```
 
 The persistent equivalent uses GuideLLM's logging level names:
@@ -150,7 +152,7 @@ level with `DEBUG` for that invocation.
 Retry one or more selected trials into a new immutable linked run:
 
 ```bash
-vtune retry --run runs/EXPERIMENT/RUN_ID \
+vllm-opt retry --run runs/EXPERIMENT/RUN_ID \
   --trial trial-0001 --trial trial-0004
 ```
 
@@ -160,7 +162,7 @@ Display every stored vLLM and GuideLLM command for a trial without executing
 anything:
 
 ```bash
-vtune reproduce --run runs/EXPERIMENT/RUN_ID --trial trial-0001
+vllm-opt reproduce --run runs/EXPERIMENT/RUN_ID --trial trial-0001
 ```
 
 Each completed run also contains a self-contained `report.html` decision
@@ -169,14 +171,14 @@ average/median/P99 latency, baseline comparison, score history,
 throughput/latency tradeoff, metric definitions, and observed parameter effects.
 
 Random and TPE runs never execute the same resolved configuration twice. If
-`optimization.trials` exceeds the unique search space, the `vtune` CLI warns and runs
+`optimization.trials` exceeds the unique search space, the `vllm-opt` CLI warns and runs
 every unique configuration once.
 
 Multiple independent trials can run on explicitly assigned, non-overlapping
 GPU sets and ports. A sequential or tensor-parallel server receives port 8000
 unless `server.port` overrides it; local-parallel trials use their configured
 port range. Sequential execution remains the default. See
-[parallel trials](https://brtydse100.github.io/vllm-config-tuner/parallel-trials/) for the
+[parallel trials](https://brtydse100.github.io/vllm-optimizer/parallel-trials/) for the
 YAML and measurement caveats.
 
 ## Product documents
@@ -184,7 +186,7 @@ YAML and measurement caveats.
 - [First MVP specification](docs/MVP_SPEC.md)
 - [Future implementation roadmap](docs/ROADMAP.md)
 - [Architecture overview and early sketch](docs/ARCHITECTURE.md)
-- [Editable Draw.io architecture diagram](docs/vtune-architecture.drawio)
+- [Editable Draw.io architecture diagram](docs/vllm-optimizer-architecture.drawio)
 - [Contributor guide](CONTRIBUTING.md)
 - [Release notes](CHANGELOG.md)
 
@@ -192,4 +194,4 @@ The MVP specification defines the first releasable version and its acceptance
 criteria. The roadmap describes capabilities that should be designed for now
 but implemented after the core experiment loop is reliable.
 
-vLLM Config Tuner is available under the [MIT License](LICENSE).
+vLLM Optimizer is available under the [MIT License](LICENSE).

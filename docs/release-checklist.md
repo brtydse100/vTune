@@ -6,7 +6,7 @@ A release is ready only after all of these checks have recorded artifacts:
   behavioral tests and clean wheel checks.
 - The external private regression suite passes; its fixtures and output remain
   outside this repository.
-- The manually dispatched [real GPU smoke workflow](https://github.com/brtydse100/vllm-config-tuner/actions/workflows/gpu-smoke.yml)
+- The manually dispatched [real GPU smoke workflow](https://github.com/brtydse100/vllm-optimizer/actions/workflows/gpu-smoke.yml)
   passes on a native-Linux self-hosted GPU runner.
 - The [compatibility matrix](compatibility.md) contains dated evidence for the
   target GPU, driver, CUDA, Python, vLLM, GuideLLM, model, ports, cleanup,

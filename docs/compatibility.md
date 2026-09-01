@@ -1,6 +1,6 @@
 # Compatibility
 
-vLLM Config Tuner targets Python 3.11–3.12 and native Linux experiment hosts
+vLLM Optimizer targets Python 3.11–3.12 and native Linux experiment hosts
 with NVIDIA GPUs. This page records dated evidence rather than promising that
 every vLLM/CUDA combination works.
 
@@ -43,10 +43,10 @@ Native Linux systems may not need either setting.
 
 ## CUDA compatibility
 
-vLLM Config Tuner does not bundle CUDA and does not require one exact CUDA release. The
+vLLM Optimizer does not bundle CUDA and does not require one exact CUDA release. The
 working combination is determined by vLLM, its PyTorch wheel, the NVIDIA
 driver, the GPU architecture, and any locally compiled kernels. Therefore,
-vLLM Config Tuner cannot promise support for every CUDA version.
+vLLM Optimizer cannot promise support for every CUDA version.
 
 Follow the [vLLM GPU installation guide](https://docs.vllm.ai/en/latest/getting_started/installation/gpu/)
 for the vLLM release you install. Also check NVIDIA's

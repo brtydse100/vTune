@@ -9,10 +9,10 @@ retry run.
 
 ## Startup never becomes ready
 
-The `vtune` CLI polls process and endpoint health rather than sleeping for a fixed time.
+The `vllm-opt` CLI polls process and endpoint health rather than sleeping for a fixed time.
 Increase `timeouts.startup` only if logs show useful model-loading progress.
 
-The `vtune` CLI always passes the same validated port to vLLM and its readiness probe.
+The `vllm-opt` CLI always passes the same validated port to vLLM and its readiness probe.
 Sequential tensor-parallel servers default to port 8000. Local-parallel mode
 requires an `execution.ports` range because it starts several server instances.
 
@@ -38,11 +38,11 @@ tokens because request completion does not independently prove output length.
 
 ## TPE trials are fewer than requested
 
-The `vtune` CLI warns and caps the run to the finite number of unique resolved
+The `vllm-opt` CLI warns and caps the run to the finite number of unique resolved
 configurations. Increase the search space if more distinct trials are needed.
 
 ## A retry source folder was deleted
 
-Retry validation fails with a clear integrity error. The `vtune` CLI will not guess or
+Retry validation fails with a clear integrity error. The `vllm-opt` CLI will not guess or
 silently reconstruct a missing source trial because that would break the audit
 link to the original run.

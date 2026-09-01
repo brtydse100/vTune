@@ -36,5 +36,6 @@ jobs:
       - run: python -m pip install dist/*.whl
       - run: python -m pip check
       - run: python -m pytest -q tests
-      - run: python -c "import vtune; print(vtune.__version__)"
+      - run: python -c "import vllm_optimizer; print(vllm_optimizer.__version__)"
+      - run: vllm-opt --help
       - run: vtune --help

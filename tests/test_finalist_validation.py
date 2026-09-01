@@ -1,13 +1,13 @@
 import asyncio
 from pathlib import Path
 
-from vtune.domain.results import WorkerStatus
-from vtune.domain.trial_report import TrialReport
-from vtune.execution.finalist_validation import validate_drifted_finalists
-from vtune.managers.run_results import RunResultsManager
-from vtune.managers.run_session import RunAccumulator
-from vtune.managers.scoring import ScoringManager, TrialScore
-from vtune.search.grid import TrialParameters
+from vllm_optimizer.domain.results import WorkerStatus
+from vllm_optimizer.domain.trial_report import TrialReport
+from vllm_optimizer.execution.finalist_validation import validate_drifted_finalists
+from vllm_optimizer.managers.run_results import RunResultsManager
+from vllm_optimizer.managers.run_session import RunAccumulator
+from vllm_optimizer.managers.scoring import ScoringManager, TrialScore
+from vllm_optimizer.search.grid import TrialParameters
 
 
 def _report(values: list[float]) -> TrialReport:

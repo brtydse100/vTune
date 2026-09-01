@@ -1,18 +1,21 @@
-# vLLM Config Tuner
+# vLLM Optimizer
+
+vLLM Optimizer is an independent community project and is not affiliated with
+the vLLM project.
 
 Tune vLLM with evidence from controlled experiments in one YAML file. You choose
-the settings and workload; the `vtune` CLI handles process lifecycle, unique search trials,
+the settings and workload; the `vllm-opt` CLI handles process lifecycle, unique search trials,
 failures, persistence, and a decision-focused report.
 
 ```bash
-pip install "vtune[runtime]"
-vtune --config experiment.yaml
+pip install "vllm-optimizer[runtime]"
+vllm-opt --config experiment.yaml
 ```
 
-Use plain `pip install vtune` for configuration and report inspection without
+Use plain `pip install vllm-optimizer` for configuration and report inspection without
 local vLLM execution. [Understand the two installation choices](installation.md).
 
-## What vLLM Config Tuner gives you
+## What vLLM Optimizer gives you
 
 - A baseline and Grid, Random, or TPE exploration of your chosen settings.
 - One or more GuideLLM or vLLM Bench Serve workloads per server configuration.

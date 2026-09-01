@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from vtune.benchmarks.configuration import (
+from vllm_optimizer.benchmarks.configuration import (
     configured_min_repeats, configured_runs, configured_warmup_repeats,
 )
-from vtune.benchmarks.timing import timeout_for_run
-from vtune.config.loader import load_config
+from vllm_optimizer.benchmarks.timing import timeout_for_run
+from vllm_optimizer.config.loader import load_config
 
 
 def _config_text(timeout: str | None = "20m") -> str:

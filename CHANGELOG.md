@@ -2,7 +2,17 @@
 
 ## Unreleased
 
-_No changes yet._
+The next planned release is the v0.1.0a11 rebrand below.
+
+## v0.1.0a11 — vLLM Optimizer rebrand
+
+_Unreleased_
+
+- Renamed the project and distribution to **vLLM Optimizer** and
+  `vllm-optimizer`.
+- Added the `vllm_optimizer` import namespace and `vllm-opt` CLI.
+- Retained deprecated `vtune` import and CLI compatibility aliases for one
+  release cycle.
 
 ## v0.1.0a10 — Benchmark trust and release safeguards
 

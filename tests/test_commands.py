@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from vtune.benchmarks.guidellm import build_plan as build_guidellm_plan
-from vtune.benchmarks.vllm import build_plan as build_vllm_plan
-from vtune.config.models import ExperimentConfig, VTuneConfig
+from vllm_optimizer.benchmarks.guidellm import build_plan as build_guidellm_plan
+from vllm_optimizer.benchmarks.vllm import build_plan as build_vllm_plan
+from vllm_optimizer.config.models import ExperimentConfig, VTuneConfig
 
 
 def _config() -> VTuneConfig:

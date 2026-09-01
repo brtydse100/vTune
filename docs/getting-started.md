@@ -16,12 +16,12 @@ python -m pip install --upgrade pip
 ## 2. Install the complete runtime
 
 ```bash
-python -m pip install "vtune[runtime]"
+python -m pip install "vllm-optimizer[runtime]"
 vllm --help
 guidellm --help
 ```
 
-This installs vLLM Config Tuner, vLLM, and GuideLLM together. Use plain `pip install vtune`
+This installs vLLM Optimizer, vLLM, and GuideLLM together. Use plain `pip install vllm-optimizer`
 only on machines that will inspect configurations, artifacts, and reports
 without launching experiments. See [installation choices](installation.md).
 
@@ -71,7 +71,7 @@ timeouts:
 ## 4. Run
 
 ```bash
-vtune --config experiment.yaml
+vllm-opt --config experiment.yaml
 ```
 
 Open `report.html` in the printed run directory when the run completes. Add

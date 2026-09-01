@@ -1,6 +1,6 @@
-# Contributing to vLLM Config Tuner
+# Contributing to vLLM Optimizer
 
-vLLM Config Tuner favors small, explicit components over framework-heavy abstractions.
+vLLM Optimizer favors small, explicit components over framework-heavy abstractions.
 Read [the architecture](docs/ARCHITECTURE.md) before changing execution flow.
 
 All contributions go through a pull request. Direct pushes and force pushes to
@@ -16,7 +16,7 @@ NVIDIA GPU with working `vllm` and `guidellm` commands.
 python -m venv .venv
 . .venv/bin/activate
 pip install -e ".[test]"
-vtune --help
+vllm-opt --help
 ```
 
 The repository contains deterministic behavioral tests that use no models,
@@ -77,6 +77,6 @@ servers or benchmarks and must label exploratory statistics honestly.
    changed.
 3. Build and install the wheel in a fresh environment.
 4. Run a real GPU smoke test for lifecycle or benchmark changes.
-5. Confirm no `vtune`-owned process remains and no private artifact is tracked.
+5. Confirm no `vllm-opt`-owned process remains and no private artifact is tracked.
 6. Update README, MVP specification, architecture, or roadmap when behavior or
    an extension point changed.

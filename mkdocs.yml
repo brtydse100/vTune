@@ -1,8 +1,8 @@
-site_name: vLLM Config Tuner
-site_description: Benchmark-driven configuration tuning for vLLM inference servers
-site_url: https://brtydse100.github.io/vllm-config-tuner/
-repo_url: https://github.com/brtydse100/vllm-config-tuner
-repo_name: brtydse100/vllm-config-tuner
+site_name: vLLM Optimizer
+site_description: Benchmark-driven configuration optimization for vLLM inference servers
+site_url: https://brtydse100.github.io/vllm-optimizer/
+repo_url: https://github.com/brtydse100/vllm-optimizer
+repo_name: brtydse100/vllm-optimizer
 edit_uri: edit/main/docs/
 
 theme:
@@ -35,23 +35,44 @@ nav:
       - Quick start: getting-started.md
       - Installation choices: installation.md
       - Configuration: configuration.md
-      - Complete YAML: full-example.md
-      - Benchmarks and datasets: benchmarking.md
+      - YAML reference:
+          - Overview: full-example.md
+          - Server and tuning: full-example-server.md
+          - Benchmarks and optimization: full-example-benchmark.md
+          - Execution and logging: full-example-execution.md
+          - vLLM Bench Serve: full-example-vllm-bench.md
+      - Benchmarks:
+          - Overview and vLLM Bench Serve: benchmarking.md
+          - GuideLLM options: benchmark-guidellm.md
+          - Datasets: benchmark-data.md
+          - Repeats and errors: benchmark-repeats.md
       - Search and scoring: search-and-scoring.md
       - Parallel trials: parallel-trials.md
   - Backend comparison: backend-comparison.md
   - Release checklist: release-checklist.md
-  - Use vLLM Config Tuner:
+  - Use vLLM Optimizer:
       - CLI reference: cli.md
       - Reports: reports.md
       - Compatibility: compatibility.md
       - Troubleshooting: troubleshooting.md
+      - Migration from vtune: migration-vllm-optimizer.md
   - Project:
       - Architecture: ARCHITECTURE.md
-      - MVP specification: MVP_SPEC.md
-      - Roadmap: ROADMAP.md
+      - MVP specification:
+          - Overview: MVP_SPEC.md
+          - Configuration: mvp/configuration.md
+          - Runtime and acceptance: mvp/runtime.md
+      - Roadmap:
+          - Overview: ROADMAP.md
+          - Engine and benchmarks: roadmap/engine.md
+          - Optimization: roadmap/optimization.md
+          - Local execution: roadmap/local-execution.md
+          - Distributed and reporting: roadmap/distributed.md
+          - APIs, cost, and capacity: roadmap/integrations.md
+          - Cross-cutting requirements: roadmap/requirements.md
       - Trust plan: TRUST_PLAN.md
       - Contributing: contributing.md
+      - v0.1.0a11: releases/v0.1.0a11.md
       - v0.1.0a10: releases/v0.1.0a10.md
       - v0.1.0a9: releases/v0.1.0a9.md
       - v0.1.0a8: releases/v0.1.0a8.md
@@ -60,7 +81,7 @@ nav:
       - v0.1.0a5: releases/v0.1.0a5.md
       - v0.1.0a2: releases/v0.1.0a2.md
       - Changelog archive: releases/CHANGELOG_ARCHIVE.md
-      - Release notes: https://github.com/brtydse100/vllm-config-tuner/blob/main/CHANGELOG.md
+      - Release notes: https://github.com/brtydse100/vllm-optimizer/blob/main/CHANGELOG.md
 
 markdown_extensions:
   - admonition
@@ -75,6 +96,6 @@ extra_css:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/brtydse100/vllm-config-tuner
+      link: https://github.com/brtydse100/vllm-optimizer
     - icon: fontawesome/brands/python
-      link: https://pypi.org/project/vtune/
+      link: https://pypi.org/project/vllm-optimizer/

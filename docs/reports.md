@@ -17,7 +17,7 @@ without being ranked as successful results.
 
 The selected-trial summary shows available throughput, TTFT, TPOT, ITL,
 end-to-end latency, and total-time measurements. A detailed table shows every
-named benchmark execution and workload, including its backend, repeat, `vtune`
+named benchmark execution and workload, including its backend, repeat, `vllm-opt`
 wall-clock elapsed time, throughput, median latency, and P99 latency. Only
 statistics the backend actually supplied are displayed. Chart axes
 are labelled. Parameter importance is exploratory: it groups observed scores
@@ -34,10 +34,10 @@ does not establish causation.
 - **ITL** measures delay between consecutive streamed tokens.
 - **End-to-end latency** measures request start through complete response.
 - **Median** is P50; **P99** means 99% of observations are at or below the value.
-- **Elapsed** is measured by the `vtune` CLI from benchmark subprocess launch through
+- **Elapsed** is measured by the `vllm-opt` CLI from benchmark subprocess launch through
   JSON parsing and excludes vLLM server startup.
 
-Backends calculate request distributions and percentiles. vLLM Config Tuner normalizes
+Backends calculate request distributions and percentiles. vLLM Optimizer normalizes
 names and units but does not derive missing percentiles. Eligible workloads are
 averaged within an execution, repeated executions use the median score, and
 named benchmark scores are averaged into the trial score.
@@ -64,7 +64,7 @@ Regenerate `report.html`, `results.csv`, and a validated copy of `result.json`
 from stored artifacts alone:
 
 ```bash
-vtune report --run runs/NAME/RUN_ID
+vllm-opt report --run runs/NAME/RUN_ID
 ```
 
 The report uses reproduction manifests from the source run while writing all

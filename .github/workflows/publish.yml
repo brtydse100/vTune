@@ -8,7 +8,7 @@ on:
       ref:
         description: Immutable tag to publish
         required: true
-        default: v0.1.0a10
+        default: v0.1.0a11
 
 permissions:
   contents: read
@@ -47,7 +47,7 @@ jobs:
     timeout-minutes: 10
     environment:
       name: pypi
-      url: https://pypi.org/project/vtune/
+      url: https://pypi.org/project/vllm-optimizer/
     permissions:
       contents: read
       id-token: write

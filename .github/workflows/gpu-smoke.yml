@@ -21,4 +21,4 @@ jobs:
       - run: python -c "import torch; assert torch.cuda.is_available(); print(torch.cuda.get_device_name(0))"
       - run: python -m pytest -q tests
       - run: vllm --version
-      - run: vtune --help
+      - run: vllm-opt --help

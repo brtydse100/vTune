@@ -13,7 +13,7 @@ optimization:
 ```
 
 `maximize` names the metric used to rank trials. Direction is inferred: the
-declared metric is always maximized. For each named benchmark, the `vtune` CLI averages
+declared metric is always maximized. For each named benchmark, the `vllm-opt` CLI averages
 the eligible workload metric values, takes the median when it was repeated,
 then averages named benchmark scores into the trial score. A workload with
 more than half of requests errored or incomplete is excluded; a trial without

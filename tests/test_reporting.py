@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from vtune.domain.results import WorkerStatus
-from vtune.domain.trial_report import TrialReport
-from vtune.managers.scoring import TrialScore
-from vtune.reporting.reporter import Reporter
+from vllm_optimizer.domain.results import WorkerStatus
+from vllm_optimizer.domain.trial_report import TrialReport
+from vllm_optimizer.managers.scoring import TrialScore
+from vllm_optimizer.reporting.reporter import Reporter
 
 
 def test_reporter_writes_csv_and_html_for_a_completed_trial(tmp_path: Path) -> None:
@@ -27,5 +27,5 @@ def test_reporter_writes_csv_and_html_for_a_completed_trial(tmp_path: Path) -> N
 
     assert csv_path.read_text(encoding="utf-8").splitlines()[1].startswith("1,trial-1,12.5")
     html = html_path.read_text(encoding="utf-8")
-    assert "vLLM Config Tuner decision report" in html
+    assert "vLLM Optimizer decision report" in html
     assert "trial-1" in html

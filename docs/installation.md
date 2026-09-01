@@ -1,11 +1,11 @@
 # Installation choices
 
-vLLM Config Tuner has two intentionally different installations:
+vLLM Optimizer has two intentionally different installations:
 
 | Installation | Includes | Use it for |
 | --- | --- | --- |
-| `pip install vtune` | vLLM Config Tuner, Optuna, and PyYAML | Validate YAML, inspect saved runs, regenerate reports, and reproduce commands without executing them |
-| `pip install "vtune[runtime]"` | Everything above, plus vLLM and GuideLLM | Start vLLM and run complete local experiments |
+| `pip install vllm-optimizer` | vLLM Optimizer, Optuna, and PyYAML | Validate YAML, inspect saved runs, regenerate reports, and reproduce commands without executing them |
+| `pip install "vllm-optimizer[runtime]"` | Everything above, plus vLLM and GuideLLM | Start vLLM and run complete local experiments |
 
 ## Run experiments
 
@@ -16,23 +16,23 @@ system Python remains untouched:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install "vtune[runtime]"
+python -m pip install "vllm-optimizer[runtime]"
 ```
 
 Verify all three commands come from the active environment:
 
 ```bash
-which vtune
+which vllm-opt
 which vllm
 which guidellm
-vtune --help
+vllm-opt --help
 vllm --help
 vllm bench serve --help
 guidellm --help
 ```
 
 The runtime installation is larger because vLLM selects PyTorch, CUDA kernels,
-and other GPU-specific packages. vLLM Config Tuner does not choose a CUDA version itself;
+and other GPU-specific packages. vLLM Optimizer does not choose a CUDA version itself;
 the correct combination depends on the vLLM release, GPU, NVIDIA driver, and
 platform. See [compatibility](compatibility.md) before changing an existing
 working vLLM environment.
@@ -42,7 +42,7 @@ working vLLM environment.
 Use the smaller core installation on Linux, Windows, or macOS:
 
 ```bash
-python -m pip install vtune
+python -m pip install vllm-optimizer
 ```
 
 This is useful for configuration validation and stored-result/report work. It
@@ -58,5 +58,5 @@ Bench Serve is included with vLLM.
 - Inside WSL, Windows files use paths such as `/mnt/c/Users/Ido/...`, not
   `C:\Users\Ido\...`.
 
-If the `vtune` CLI cannot find a runtime command, it reports which command is missing and
-suggests `pip install "vtune[runtime]"`.
+If the `vllm-opt` CLI cannot find a runtime command, it reports which command is missing and
+suggests `pip install "vllm-optimizer[runtime]"`.
