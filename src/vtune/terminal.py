@@ -10,6 +10,7 @@ from time import monotonic
 
 from vtune.config.models import VTuneConfig
 from vtune.config.runtime import LOG_LEVELS
+from vtune.terminal_style import styled
 
 
 def with_debug_logging(config: VTuneConfig) -> VTuneConfig:
@@ -34,19 +35,22 @@ class TerminalLogger:
             self._clear_live()
         return monotonic() - self._started
 
-    def debug(self, message: str) -> None: self._write("DEBUG", message)
+    def debug(self, message: str) -> None: self._write("DEBUG", message, "dim")
     def info(self, message: str) -> None: self._write("INFO", message)
-    def warning(self, message: str) -> None: self._write("WARNING", message)
+    def warning(self, message: str) -> None: self._write("WARNING", message, "yellow")
 
     def experiment(self, values: dict[str, object]) -> None:
-        self.info("=" * 24 + " vTune experiment " + "=" * 24)
+        self._write("INFO", "=" * 18 + " vLLM Config Tuner experiment " + "=" * 18, "cyan")
         width = max(map(len, values), default=0)
         self.info("\n".join(f"{name:<{width}}  {value}" for name, value in values.items()))
 
     def trial(self, position: int, total: int, trial_id: str,
               values: dict[str, object], worker: str | None = None) -> None:
         owner = f" · {worker}" if worker else ""
-        self.info(f"\n{_bar(position, total)} Trial {position} of {total} · {trial_id}{owner}")
+        self._write(
+            "INFO", f"\n{_bar(position, total)} Trial {position} of {total} · {trial_id}{owner}",
+            "cyan",
+        )
         if values:
             width = max(map(len, values))
             self.info("\n".join(f"{name:<{width}}  {value}" for name, value in values.items()))
@@ -64,8 +68,10 @@ class TerminalLogger:
             label, _, started = self._stages.pop(key, (label, scope, monotonic()))
             self._clear_live()
             icon = "✓" if event == "completed" else "✗"
-            method = self.info if event == "completed" else self.warning
-            method(f"{scope + ' ' if scope else ''}{icon} {label} — {_elapsed(monotonic() - started)}")
+            tone = "green" if event == "completed" else "red"
+            self._write("INFO" if event == "completed" else "WARNING",
+                        f"{scope + ' ' if scope else ''}{icon} {label} — {_elapsed(monotonic() - started)}",
+                        tone)
             self._render_live()
 
     def benchmark_score(self, name: str, repeat: int | None, score: float | None) -> None:
@@ -73,13 +79,13 @@ class TerminalLogger:
         if score is None:
             self.warning(f"Benchmark {name}{suffix} — no eligible score; all requests failed")
         else:
-            self.info(f"Benchmark {name}{suffix} — score={score:.4f}")
+            self._write("INFO", f"Benchmark {name}{suffix} — score={score:.4f}", "green")
 
     def benchmark_aggregate(self, name: str, score: float) -> None:
-        self.info(f"Benchmark {name} — repeated score={score:.4f}")
+        self._write("INFO", f"Benchmark {name} — repeated score={score:.4f}", "green")
 
     def session_complete(self, seconds: float) -> None:
-        self.info(f"Session duration: {_elapsed(seconds)}")
+        self._write("INFO", f"Session duration: {_elapsed(seconds)}", "green")
 
     def _refresh(self) -> None:
         while not self._stop.wait(0.12):
@@ -101,13 +107,14 @@ class TerminalLogger:
             print(f"\033[{self._drawn}A\033[J", end="", flush=True)
             self._drawn = 0
 
-    def _write(self, level: str, message: str) -> None:
+    def _write(self, level: str, message: str, tone: str | None = None) -> None:
         if LOG_LEVELS.index(level) < self._threshold:
             return
         with self._lock:
             self._clear_live()
             stamp = datetime.now().strftime("%H:%M:%S")
-            print(f"[{stamp} +{_elapsed(monotonic() - self._started)}] {message}", flush=True)
+            rendered = styled(message, tone, sys.stdout) if tone else message
+            print(f"[{stamp} +{_elapsed(monotonic() - self._started)}] {rendered}", flush=True)
             self._render_live()
 
 

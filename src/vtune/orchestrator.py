@@ -4,12 +4,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
 
-from vtune.benchmarks.configuration import configured_repeats, configured_runs
-from vtune.benchmarks.timing import timeout_for_run
+from vtune.benchmarks.configuration import configured_runs
 from vtune.config.models import VTuneConfig
-from vtune.config.runtime import (
-    baseline_enabled, duration, logging_level, maximize_metric, server_port,
-)
+from vtune.config.preflight import validate_config
+from vtune.config.runtime import baseline_enabled, logging_level, maximize_metric
 from vtune.domain.results import WorkerStatus
 from vtune.domain.trial_report import TrialReport
 from vtune.execution import (
@@ -19,13 +17,13 @@ from vtune.managers.run_results import RunResultsManager
 from vtune.managers.run_session import RunAccumulator, run_status
 from vtune.managers.scoring import ScoringManager, TrialScore
 from vtune.search import (
-    TrialParameters, create_search, expand_grid, search_warning, validate_search,
+    TrialParameters, create_search, search_warning,
 )
 from vtune.search.fixed_session import FixedSearchSession
 from vtune.terminal import TerminalLogger
 from vtune.reporting import Reporter
 from vtune.reporting.context import ReportContext
-from vtune.reporting.llm_summary import settings as llm_settings, summarize
+from vtune.reporting.llm_summary import summarize
 from vtune.reproduction.manifest import ManifestWriter
 from vtune.reproduction.metadata import collect_metadata
 @dataclass(frozen=True, slots=True)
@@ -45,10 +43,9 @@ class Orchestrator:
         source_run_id: str | None = None,
         sources: Mapping[str, Mapping[str, str]] | None = None,
     ) -> None:
+        validate_config(config)
         self._config = config
         self._metric = maximize_metric(config)
-        if trials is None:
-            validate_search(config)
         self._scoring = ScoringManager(self._metric)
         self._manifest = ManifestWriter({})
         self._trial_executor: TrialExecutor | None = None
@@ -58,25 +55,9 @@ class Orchestrator:
         self._terminal = TerminalLogger(logging_level(config))
 
     def validate(self) -> None:
-        runs = configured_runs(self._config)
-        configured_repeats(self._config)
-        if self._retry_trials is None:
-            validate_search(self._config)
-        server_port(self._config)
-        baseline_enabled(self._config)
-        llm_settings(self._config)
-        slots = worker_slots(self._config)
-        if slots and not all(
-            any(slot.supports(trial.server_args, self._config.server) for slot in slots)
-            for trial in expand_grid(self._config)
-        ):
-            raise ValueError("a trial tensor-parallel-size exceeds every parallel worker")
-        duration(self._config.timeouts, "startup", 900)
-        for run in runs:
-            timeout_for_run(run, self._config.timeouts.get("benchmark"))
+        validate_config(self._config)
 
     async def run(self) -> RunOutcome:
-        self.validate()
         run_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
         started_at = datetime.now(timezone.utc).isoformat()
         directory = Path(self._config.experiment.output_dir) / self._config.experiment.name / run_id

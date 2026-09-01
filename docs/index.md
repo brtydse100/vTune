@@ -1,7 +1,7 @@
-# Tune vLLM with evidence
+# vLLM Config Tuner
 
-vTune runs controlled vLLM experiments from one YAML file. You choose the
-settings and workload; vTune handles process lifecycle, unique search trials,
+Tune vLLM with evidence from controlled experiments in one YAML file. You choose
+the settings and workload; the `vtune` CLI handles process lifecycle, unique search trials,
 failures, persistence, and a decision-focused report.
 
 ```bash
@@ -12,7 +12,7 @@ vtune --config experiment.yaml
 Use plain `pip install vtune` for configuration and report inspection without
 local vLLM execution. [Understand the two installation choices](installation.md).
 
-## What vTune gives you
+## What vLLM Config Tuner gives you
 
 - A baseline and Grid, Random, or TPE exploration of your chosen settings.
 - One or more GuideLLM or vLLM Bench Serve workloads per server configuration.

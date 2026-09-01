@@ -1,8 +1,8 @@
-site_name: vTune
-site_description: Local-first experimentation and optimization for vLLM
-site_url: https://brtydse100.github.io/vTune/
-repo_url: https://github.com/brtydse100/vTune
-repo_name: brtydse100/vTune
+site_name: vLLM Config Tuner
+site_description: Benchmark-driven configuration tuning for vLLM inference servers
+site_url: https://brtydse100.github.io/vllm-config-tuner/
+repo_url: https://github.com/brtydse100/vllm-config-tuner
+repo_name: brtydse100/vllm-config-tuner
 edit_uri: edit/main/docs/
 
 theme:
@@ -39,7 +39,7 @@ nav:
       - Benchmarks and datasets: benchmarking.md
       - Search and scoring: search-and-scoring.md
       - Parallel trials: parallel-trials.md
-  - Use vTune:
+  - Use vLLM Config Tuner:
       - CLI reference: cli.md
       - Reports: reports.md
       - Compatibility: compatibility.md
@@ -48,13 +48,16 @@ nav:
       - Architecture: ARCHITECTURE.md
       - MVP specification: MVP_SPEC.md
       - Roadmap: ROADMAP.md
+      - Trust plan: TRUST_PLAN.md
       - Contributing: contributing.md
+      - v0.1.0a9: releases/v0.1.0a9.md
       - v0.1.0a8: releases/v0.1.0a8.md
       - v0.1.0a7: releases/v0.1.0a7.md
       - v0.1.0a6: releases/v0.1.0a6.md
       - v0.1.0a5: releases/v0.1.0a5.md
       - v0.1.0a2: releases/v0.1.0a2.md
-      - Release notes: https://github.com/brtydse100/vTune/blob/main/CHANGELOG.md
+      - Changelog archive: releases/CHANGELOG_ARCHIVE.md
+      - Release notes: https://github.com/brtydse100/vllm-config-tuner/blob/main/CHANGELOG.md
 
 markdown_extensions:
   - admonition
@@ -69,6 +72,6 @@ extra_css:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/brtydse100/vTune
+      link: https://github.com/brtydse100/vllm-config-tuner
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/vtune/

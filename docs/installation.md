@@ -1,10 +1,10 @@
 # Installation choices
 
-vTune has two intentionally different installations:
+vLLM Config Tuner has two intentionally different installations:
 
 | Installation | Includes | Use it for |
 | --- | --- | --- |
-| `pip install vtune` | vTune, Optuna, and PyYAML | Validate YAML, inspect saved runs, regenerate reports, and reproduce commands without executing them |
+| `pip install vtune` | vLLM Config Tuner, Optuna, and PyYAML | Validate YAML, inspect saved runs, regenerate reports, and reproduce commands without executing them |
 | `pip install "vtune[runtime]"` | Everything above, plus vLLM and GuideLLM | Start vLLM and run complete local experiments |
 
 ## Run experiments
@@ -32,7 +32,7 @@ guidellm --help
 ```
 
 The runtime installation is larger because vLLM selects PyTorch, CUDA kernels,
-and other GPU-specific packages. vTune does not choose a CUDA version itself;
+and other GPU-specific packages. vLLM Config Tuner does not choose a CUDA version itself;
 the correct combination depends on the vLLM release, GPU, NVIDIA driver, and
 platform. See [compatibility](compatibility.md) before changing an existing
 working vLLM environment.
@@ -58,5 +58,5 @@ Bench Serve is included with vLLM.
 - Inside WSL, Windows files use paths such as `/mnt/c/Users/Ido/...`, not
   `C:\Users\Ido\...`.
 
-If vTune cannot find a runtime command, it reports which command is missing and
+If the `vtune` CLI cannot find a runtime command, it reports which command is missing and
 suggests `pip install "vtune[runtime]"`.

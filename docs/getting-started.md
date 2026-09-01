@@ -21,7 +21,7 @@ vllm --help
 guidellm --help
 ```
 
-This installs vTune, vLLM, and GuideLLM together. Use plain `pip install vtune`
+This installs vLLM Config Tuner, vLLM, and GuideLLM together. Use plain `pip install vtune`
 only on machines that will inspect configurations, artifacts, and reports
 without launching experiments. See [installation choices](installation.md).
 

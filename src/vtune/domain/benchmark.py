@@ -36,11 +36,17 @@ class BenchmarkResult:
     backend_version: str
     workloads: tuple[WorkloadResult, ...]
     raw_artifact: Path
+    repeat_index: int | None = None
+    elapsed_seconds: float | None = None
 
     def __post_init__(self) -> None:
         if not self.run_name.strip() or not self.backend.strip() or not self.backend_version.strip():
             raise ValueError("benchmark run, backend, and version must not be empty")
         if not self.workloads:
             raise ValueError("benchmark result must contain at least one workload")
+        if self.repeat_index is not None and self.repeat_index < 1:
+            raise ValueError("benchmark repeat index must be positive")
+        if self.elapsed_seconds is not None and self.elapsed_seconds < 0:
+            raise ValueError("benchmark elapsed time must not be negative")
         object.__setattr__(self, "workloads", tuple(self.workloads))
         object.__setattr__(self, "raw_artifact", Path(self.raw_artifact))

@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from vtune.config.models import VTuneConfig
-from vtune.config.runtime import logging_level, model_path
+from vtune.config.runtime import logging_level, model_path, server_port
 from vtune.domain.results import Failure, WorkerResult
 from vtune.workers.base import TrialContext
 from vtune.workers.process import ProcessSpec
@@ -26,6 +26,7 @@ def build_process_spec(
     _validate_selected_keys(chosen_env, config.tune_env, "environment")
 
     arguments = {"host": config.execution.get("host", "127.0.0.1"),
+                 "port": server_port(config),
                  **{name: value for name, value in config.server.items()
                     if name != "model"}}
     arguments.update(chosen_args)

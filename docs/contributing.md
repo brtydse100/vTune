@@ -1,8 +1,8 @@
 # Contributing
 
-vTune favors small, typed modules with explicit ownership boundaries. Start by
+vLLM Config Tuner favors small, typed modules with explicit ownership boundaries. Start by
 reading the [architecture](ARCHITECTURE.md) and the repository's
-[`CONTRIBUTING.md`](https://github.com/brtydse100/vTune/blob/main/CONTRIBUTING.md).
+[`CONTRIBUTING.md`](https://github.com/brtydse100/vllm-config-tuner/blob/main/CONTRIBUTING.md).
 
 Common extension points are separated by responsibility:
 

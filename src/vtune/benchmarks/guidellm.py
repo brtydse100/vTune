@@ -11,6 +11,7 @@ from vtune.config.models import VTuneConfig
 from vtune.config.runtime import model_path
 from vtune.domain.benchmark import BenchmarkResult, WorkloadResult
 from vtune.benchmarks.timing import normalize_durations
+from vtune.benchmarks.metrics import normalize_guidellm_metrics
 
 @dataclass(frozen=True, slots=True)
 class GuideLLMPlan:
@@ -73,8 +74,12 @@ def parse_result(path: Path, run_name: str) -> BenchmarkResult:
     if not isinstance(benchmarks, list) or not benchmarks:
         raise ValueError("GuideLLM result must contain benchmarks")
     workloads = tuple(
-        WorkloadResult(index, _mapping(item.get("config"), f"benchmark {index} config"),
-                       _mapping(item.get("metrics"), f"benchmark {index} metrics"))
+        WorkloadResult(
+            index, _mapping(item.get("config"), f"benchmark {index} config"),
+            normalize_guidellm_metrics(
+                _mapping(item.get("metrics"), f"benchmark {index} metrics")
+            ),
+        )
         for index, value in enumerate(benchmarks)
         for item in (_mapping(value, f"benchmark {index}"),)
     )

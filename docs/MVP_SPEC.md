@@ -1,4 +1,4 @@
-# vTune MVP specification
+# vLLM Config Tuner MVP specification
 
 - **Status:** Implemented development MVP
 - **Platform:** Linux with NVIDIA GPUs
@@ -10,8 +10,8 @@ belong in [ROADMAP.md](ROADMAP.md).
 
 ## Product contract
 
-vTune runs local experiments over vLLM server configurations. The user owns
-the model, server parameters, benchmark workload, and metric. vTune owns the
+vLLM Config Tuner runs local experiments over vLLM server configurations. The user owns
+the model, server parameters, benchmark workload, and metric. The `vtune` CLI owns the
 repeated process lifecycle:
 
 ```text
@@ -61,7 +61,7 @@ never resumed or overwritten. Manual retries create a new linked run.
 ## Terminology
 
 - **Experiment:** named directory containing related immutable runs.
-- **Run:** one vTune invocation and its timestamped output directory.
+- **Run:** one `vtune` invocation and its timestamped output directory.
 - **Trial:** one resolved server configuration.
 - **Attempt:** one execution attempt for a trial.
 - **Benchmark run:** one named configuration for the selected benchmark engine.
@@ -142,7 +142,7 @@ experiment also requires at least one `benchmark.runs` entry and a non-empty
 `optimization.maximize` metric.
 
 `server.model` must be an existing local directory. Relative paths are resolved
-from the YAML file. vTune never downloads a model.
+from the YAML file. The `vtune` CLI never downloads a model.
 
 ### Server values
 
@@ -165,7 +165,7 @@ vLLM flags are rendered deterministically. `true` emits a presence flag;
 `false` and `null` omit it; a fixed list repeats the flag for each item. All
 processes are launched with argument arrays, never interpolated shell text.
 Fixed environment variables use top-level `env`. Unless `server.host` is set
-explicitly, vTune supplies
+explicitly, the `vtune` CLI supplies
 `--host 127.0.0.1`. `execution.host` selects the address used for health checks
 and defaults to the same loopback address.
 
@@ -177,7 +177,7 @@ mapping. Nested GuideLLM values are flattened to GuideLLM's CLI format.
 
 GuideLLM always writes `results.json`; its console output is preserved in
 `benchmark.log`. Profiles such as `throughput`, `concurrent`, and `sweep` are
-passed through without a vTune allowlist.
+passed through without a vLLM Config Tuner allowlist.
 
 ### Search
 
@@ -192,7 +192,7 @@ passed through without a vTune allowlist.
 ### Scoring
 
 `optimization.maximize` names one GuideLLM metric. For each benchmark repeat,
-vTune averages that metric across the workloads returned by the profile. It
+the `vtune` CLI averages that metric across the workloads returned by the profile. It
 then takes the median across repeats for each named benchmark run and the
 arithmetic mean across benchmark runs for the overall trial score.
 
@@ -205,7 +205,7 @@ separately and can still be the best observed recommendation in HTML.
 positive duration. Durations accept seconds or strings such as
 `30s`, `2m`, and `1h`.
 
-When `timeouts.benchmark` is omitted, vTune uses the GuideLLM duration
+When `timeouts.benchmark` is omitted, the `vtune` CLI uses the GuideLLM duration
 constraint, workload strategy count, and a safety margin. Without a duration
 constraint it defaults to 180 seconds. The literal value `auto` is invalid.
 
@@ -289,6 +289,7 @@ inherited process environment is never persisted.
 
 The static HTML report shows the best observed result, tuned delta from
 baseline, changed settings, reproduction command, trial history,
+per-benchmark elapsed time and latency statistics, metric definitions,
 throughput/TTFT plot when available, exploratory parameter importance,
 observed parameter effects, per-benchmark winners, distinct top
 configurations, and failure summaries.

@@ -80,6 +80,9 @@ def _metric_value(value: object) -> float | None:
         return float(value)
     if not isinstance(value, Mapping):
         return None
+    average = value.get("average")
+    if isinstance(average, int | float) and not isinstance(average, bool):
+        return float(average)
     successful = value.get("successful")
     if isinstance(successful, Mapping):
         mean = successful.get("mean")

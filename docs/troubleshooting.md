@@ -9,21 +9,39 @@ retry run.
 
 ## Startup never becomes ready
 
-vTune polls process and endpoint health rather than sleeping for a fixed time.
+The `vtune` CLI polls process and endpoint health rather than sleeping for a fixed time.
 Increase `timeouts.startup` only if logs show useful model-loading progress.
+
+The `vtune` CLI always passes the same validated port to vLLM and its readiness probe.
+Sequential tensor-parallel servers default to port 8000. Local-parallel mode
+requires an `execution.ports` range because it starts several server instances.
+
+## Configuration error appears after work starts
+
+Current versions validate nested benchmark options and render every planned
+command before creating a run directory. If an invalid YAML-derived value still
+reaches a worker, report the YAML and the first error line as a bug.
 
 ## Benchmark times out
 
-Omit `timeouts.benchmark` for a derived limit, or set an explicit duration such
-as `20m`. Inspect the timeout message and `benchmark.log` path it prints.
+Set an explicit duration such as `30m` for GuideLLM runs constrained only by
+`max_requests`. Without `max_duration`, the current automatic limit is three
+minutes and is not suitable for long-generation models. Inspect the timeout
+message and `benchmark.log` path it prints.
+
+GuideLLM counts completed, errored, and cancelled requests as processed. A
+throughput run can therefore exit while vLLM still appears busy. Until strict
+completion and server-drain checks are implemented, confirm `request_totals` in
+`results.json`, compare requested and observed output-token counts, and inspect
+both `benchmark.log` and `vllm.log` before trusting a long-generation result.
 
 ## TPE trials are fewer than requested
 
-vTune warns and caps the run to the finite number of unique resolved
+The `vtune` CLI warns and caps the run to the finite number of unique resolved
 configurations. Increase the search space if more distinct trials are needed.
 
 ## A retry source folder was deleted
 
-Retry validation fails with a clear integrity error. vTune will not guess or
+Retry validation fails with a clear integrity error. The `vtune` CLI will not guess or
 silently reconstruct a missing source trial because that would break the audit
 link to the original run.

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
+from dataclasses import replace
 from pathlib import Path
+from time import monotonic
 
 from vtune.benchmarks.vllm import build_plan, parse_result
 from vtune.config.models import VTuneConfig
@@ -54,6 +56,7 @@ class VLLMBenchmarkWorker:
                 int(context.values.get("attempt_index", 1)), self._environment(),
                 plan.run_name, self._repeat_index,
             ))
+            started = monotonic()
             process = await self._runner.start(
                 ProcessSpec(plan.argv, env=self._environment()), plan.log_path
             )
@@ -81,7 +84,11 @@ class VLLMBenchmarkWorker:
                 plan.log_path, "benchmark_failed", f"vLLM bench serve exited with code {returncode}"
             ))
         try:
-            result = parse_result(plan.json_path, plan.run_name)
+            result = replace(
+                parse_result(plan.json_path, plan.run_name),
+                repeat_index=self._repeat_index,
+                elapsed_seconds=monotonic() - started,
+            )
         except ValueError as error:
             return WorkerResult.failed(classified_failure(
                 plan.log_path, "benchmark_result_invalid", str(error)

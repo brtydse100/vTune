@@ -1,8 +1,8 @@
-# vTune architecture
+# vLLM Config Tuner architecture
 
 ## Early design sketch
 
-![Early vTune architecture sketch](assets/architecture-early-sketch.png)
+![Early vLLM Config Tuner architecture sketch](assets/architecture-early-sketch.png)
 
 The sketch is preserved as the project's original manager-and-worker concept.
 The editable early diagram is [vtune-architecture.drawio](vtune-architecture.drawio).

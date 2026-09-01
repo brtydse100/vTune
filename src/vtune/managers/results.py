@@ -59,6 +59,8 @@ class ResultsManager:
             "name": result.run_name, "backend": result.backend,
             "backend_version": result.backend_version,
             "raw_artifact": str(result.raw_artifact),
+            "repeat": result.repeat_index,
+            "elapsed_seconds": result.elapsed_seconds,
             "workloads": [
                 {"index": item.index, "configuration": item.configuration,
                  "metrics": item.metrics} for item in result.workloads

@@ -29,7 +29,7 @@ the only currently supported behavior. In this first implementation,
 silently ignored. The port range must contain at least one port per worker.
 
 Do not set `server.port`, tune `port`, or set/tune `CUDA_VISIBLE_DEVICES` in
-parallel mode. vTune owns those values to prevent collisions. Worker names and
+parallel mode. The `vtune` CLI owns those values to prevent collisions. Worker names and
 GPU sets must be unique, and GPU sets cannot overlap.
 
 ## Scheduling behavior

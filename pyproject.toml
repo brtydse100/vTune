@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vtune"
-version = "0.1.0a8"
-description = "Local-first experimentation for vLLM serving configurations"
+version = "0.1.0a9"
+description = "Benchmark-driven configuration tuning for vLLM inference servers"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
-keywords = ["vllm", "guidellm", "benchmark", "optimization", "inference"]
+keywords = ["vllm", "ai", "llm", "guidellm", "benchmark", "optimization", "inference"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
@@ -26,8 +26,8 @@ dependencies = ["Optuna>=4.0,<5", "PyYAML>=6.0"]
 runtime = ["vllm>=0.28,<0.29", "guidellm>=0.7.3,<0.8"]
 
 [project.urls]
-Repository = "https://github.com/brtydse100/vTune"
-Issues = "https://github.com/brtydse100/vTune/issues"
+Repository = "https://github.com/brtydse100/vllm-config-tuner"
+Issues = "https://github.com/brtydse100/vllm-config-tuner/issues"
 
 [project.scripts]
 vtune = "vtune.cli:main"
