@@ -2,11 +2,11 @@
 
 ## Unreleased
 
-The next planned release is the v0.1.0a11 rebrand below.
+_No changes yet._
 
 ## v0.1.0a11 — vLLM Optimizer rebrand
 
-_Unreleased_
+_September 2, 2026_
 
 - Renamed the project and distribution to **vLLM Optimizer** and
   `vllm-optimizer`.
