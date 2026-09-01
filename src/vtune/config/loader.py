@@ -86,6 +86,8 @@ def _build_config(raw: Any, config_directory: Path) -> VTuneConfig:
         **optional,
     )
     logging_level(config)
+    from .preflight import validate_config
+    validate_config(config)
     return config
 
 

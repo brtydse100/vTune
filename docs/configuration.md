@@ -1,6 +1,6 @@
 # Configuration
 
-vTune keeps server settings separate from benchmark workloads so every server
+vLLM Config Tuner keeps server settings separate from benchmark workloads so every server
 configuration can be compared under the same demand.
 
 ## Model and server
@@ -25,8 +25,12 @@ env:
   CUDA_VISIBLE_DEVICES: "0,1"
 ```
 
-Unknown vLLM flags are intentionally allowed. vTune renders keys as CLI flags,
-which keeps new vLLM options usable without a vTune release.
+Unknown vLLM flags are intentionally allowed. The `vtune` CLI renders keys as CLI flags,
+which keeps new vLLM options usable without a vLLM Config Tuner release.
+
+The complete configuration is validated before a run directory or process is
+created. This includes nested benchmark options, search values, ports, GPU
+assignments, timeouts, and the rendered vLLM and benchmark commands.
 
 ### Fixed value rendering
 
@@ -111,24 +115,28 @@ execution:
     max: 8199
 ```
 
-GPU sets must not overlap. vTune assigns `CUDA_VISIBLE_DEVICES` and one stable
+GPU sets must not overlap. The `vtune` CLI assigns `CUDA_VISIBLE_DEVICES` and one stable
 port to each worker, so do not configure either yourself in parallel mode.
 `max_parallel_trials` must equal the declared worker count, and every trial's
 `tensor-parallel-size` must fit at least one worker. The baseline runs alone
 first; tuned trials then run concurrently. See
 [parallel trials](parallel-trials.md) for scheduling and measurement rules.
 
+For sequential execution, including one vLLM server using tensor parallelism
+across several GPUs, the `vtune` CLI always passes a concrete port. It defaults to 8000;
+set `server.port` only when another port is required.
+
 ## Benchmark runs
 
 `benchmark.engine` selects `guidellm` (default) or `vllm`. A single trial may
 contain several benchmark runs, but they all evaluate the same running server
 configuration. GuideLLM runs use `profile`, `constraints`, and `data`; vLLM
-Bench Serve runs use `args`. vTune preserves raw JSON and `benchmark.log`, then
+Bench Serve runs use `args`. The `vtune` CLI preserves raw JSON and `benchmark.log`, then
 exposes normalized metrics to scoring and reports.
 
 Every supported profile, constraint, request format, and dataset form has a
 copyable examples in [benchmark configuration](benchmarking.md). See the
-[complete YAML](full-example.md) for all vTune sections together.
+[complete YAML](full-example.md) for all configuration sections together.
 
 ## Logging and timeouts
 

@@ -1,14 +1,16 @@
-# vTune
+# vLLM Config Tuner
 
-vTune is a local-first experimentation and optimization tool for vLLM serving
-configurations. Users define the parameters and workloads they care about;
-vTune manages the server lifecycle, runs repeatable benchmarks, explores the
-search space, and reports which configurations performed best.
+vLLM Config Tuner is a local-first benchmarking and optimization tool for vLLM
+serving configurations. Users define the parameters and workloads they care
+about; the `vtune` CLI manages the server lifecycle, runs repeatable benchmarks,
+explores the search space, and reports which configurations performed best.
 
-vTune is alpha software targeting Linux with NVIDIA GPUs and Python 3.11–3.12.
+vLLM Config Tuner is alpha software targeting Linux with NVIDIA GPUs and
+Python 3.11–3.12. The Python distribution, import namespace, and CLI command
+remain `vtune`.
 
-**[Documentation](https://brtydse100.github.io/vTune/)** ·
-**[Quick start](https://brtydse100.github.io/vTune/getting-started/)** ·
+**[Documentation](https://brtydse100.github.io/vllm-config-tuner/)** ·
+**[Quick start](https://brtydse100.github.io/vllm-config-tuner/getting-started/)** ·
 **[PyPI](https://pypi.org/project/vtune/)**
 
 The current code is verified with vLLM 0.28.0 and GuideLLM 0.7.3 on WSL2
@@ -40,7 +42,7 @@ Choose the installation that matches what you want to do:
 
 The core package intentionally does not install GPU frameworks. The `runtime`
 extra adds vLLM and GuideLLM, which select large PyTorch/CUDA dependencies for
-the machine. See the [installation guide](https://brtydse100.github.io/vTune/installation/)
+the machine. See the [installation guide](https://brtydse100.github.io/vllm-config-tuner/installation/)
 for virtual environments, CUDA guidance, and verification commands.
 
 ## Quick start
@@ -95,19 +97,19 @@ vtune --config experiment.yaml
 
 The short form is `vtune -c experiment.yaml`. The command validates the file,
 runs the experiment, persists results, and generates its exports and report.
-vTune binds vLLM to `127.0.0.1` by default. Set `server.host` explicitly
+The `vtune` CLI binds vLLM to `127.0.0.1` by default. Set `server.host` explicitly
 only when the benchmark server must be reachable from another host.
 
 Fixed vLLM flags go directly under `server`; tunable flags use top-level
 `tune`. Fixed and tunable environment variables use `env` and `tune_env`.
-See the [configuration guide](https://brtydse100.github.io/vTune/configuration/)
+See the [configuration guide](https://brtydse100.github.io/vllm-config-tuner/configuration/)
 for categorical, boolean, integer-range, float-range, list, and environment
-examples. The [complete YAML](https://brtydse100.github.io/vTune/full-example/)
-and [benchmark guide](https://brtydse100.github.io/vTune/benchmarking/) show
+examples. The [complete YAML](https://brtydse100.github.io/vllm-config-tuner/full-example/)
+and [benchmark guide](https://brtydse100.github.io/vllm-config-tuner/benchmarking/) show
 every supported control with copyable examples.
 
 To use vLLM's native benchmark, set `benchmark.engine: vllm`. Its `args`
-map directly to `vllm bench serve` flags; vTune supplies the model, server
+map directly to `vllm bench serve` flags; the `vtune` CLI supplies the model, server
 address, and JSON output path:
 
 ```yaml
@@ -124,7 +126,9 @@ benchmark:
         max-concurrency: 16
 ```
 
-Terminal output is concise by default. To stream server and benchmark logs:
+Interactive terminal output uses color and remains concise by default. Set the
+standard `NO_COLOR` environment variable to disable color. To stream server and
+benchmark logs:
 
 ```bash
 vtune --config experiment.yaml --verbose
@@ -158,16 +162,19 @@ vtune reproduce --run runs/EXPERIMENT/RUN_ID --trial trial-0001
 ```
 
 Each completed run also contains a self-contained `report.html` decision
-dashboard with the best observed configuration, baseline comparison, score
-history, throughput/latency tradeoff, and observed parameter effects.
+dashboard with the best observed configuration, per-benchmark elapsed time,
+average/median/P99 latency, baseline comparison, score history,
+throughput/latency tradeoff, metric definitions, and observed parameter effects.
 
 Random and TPE runs never execute the same resolved configuration twice. If
-`optimization.trials` exceeds the unique search space, vTune warns and runs
+`optimization.trials` exceeds the unique search space, the `vtune` CLI warns and runs
 every unique configuration once.
 
 Multiple independent trials can run on explicitly assigned, non-overlapping
-GPU sets and ports. Sequential execution remains the default. See
-[parallel trials](https://brtydse100.github.io/vTune/parallel-trials/) for the
+GPU sets and ports. A sequential or tensor-parallel server receives port 8000
+unless `server.port` overrides it; local-parallel trials use their configured
+port range. Sequential execution remains the default. See
+[parallel trials](https://brtydse100.github.io/vllm-config-tuner/parallel-trials/) for the
 YAML and measurement caveats.
 
 ## Product documents
@@ -183,4 +190,4 @@ The MVP specification defines the first releasable version and its acceptance
 criteria. The roadmap describes capabilities that should be designed for now
 but implemented after the core experiment loop is reliable.
 
-vTune is available under the [MIT License](LICENSE).
+vLLM Config Tuner is available under the [MIT License](LICENSE).

@@ -1,8 +1,15 @@
 # Benchmark configuration
 
 Set `benchmark.engine` to `guidellm` (the default) or `vllm`. Each run invokes
-the selected engine against the same vLLM trial. vTune saves raw JSON and
-`benchmark.log`, then normalizes the result for scoring and reporting.
+the selected engine against the same vLLM trial. vLLM Config Tuner saves raw
+JSON and `benchmark.log`, then normalizes the result for scoring and reporting.
+
+Both adapters expose the same canonical fields: requests/s, output and total
+tokens/s, TTFT, TPOT, ITL, end-to-end latency, and successful/errored/incomplete
+request totals. Statistical metrics use `average`, `median`, and `p99`. Values
+remain absent when the backend did not supply them; vLLM Config Tuner never
+relabels an average as a percentile. GuideLLM request latency is converted from
+seconds to milliseconds. The raw backend JSON remains available unchanged.
 
 ## vLLM Bench Serve
 
@@ -27,12 +34,12 @@ benchmark:
         ignore-eos: true
 ```
 
-vTune automatically uses `--backend vllm` and also owns `model`, `host`,
+The `vtune` CLI automatically uses `--backend vllm` and also owns `model`, `host`,
 `port`, `base-url`, `save-result`, `append-result`, `result-dir`, and
 `result-filename`; do not put them under `args`. Underscores
 and hyphens are both accepted in keys. `true` adds a flag and `false` omits it.
 A list repeats its flag for every item. Other scalar values are passed as
-strings, so new vLLM options do not require a vTune release.
+strings, so new vLLM options do not require a vLLM Config Tuner release.
 
 Common dataset forms:
 
@@ -73,11 +80,12 @@ and `timed_trace`. Their arguments can change with vLLM; use the
 [official reference](https://docs.vllm.ai/en/latest/cli/bench/serve/) and place
 its flags under `args`.
 
-vTune aliases `output_throughput`, `request_throughput`, and
+The adapter maps `output_throughput`, `request_throughput`, and
 `total_token_throughput` to `output_tokens_per_second`,
-`requests_per_second`, and `total_tokens_per_second`. It retains raw fields and
-latency percentiles such as `p99_ttft_ms`. Completed, failed, and missing
-requests use the same error-aware ranking as GuideLLM.
+`requests_per_second`, and `total_tokens_per_second`. Flat mean, median, and
+P99 latency fields are combined into the canonical statistical objects.
+Completed, failed, and missing requests use the same error-aware ranking as
+GuideLLM.
 
 ## GuideLLM
 
@@ -116,7 +124,7 @@ profile: {kind: sweep, sweep_size: 10, strategy_type: constant}
 profile: {kind: replay, time_scale: 1.0}
 ```
 
-GuideLLM may add profiles without requiring a vTune release because profile
+GuideLLM may add profiles without requiring a vLLM Config Tuner release because profile
 fields are passed through. Consult its
 [benchmark guide](https://github.com/vllm-project/guidellm/blob/main/docs/getting-started/benchmark.md)
 for version-specific fields.
@@ -146,7 +154,7 @@ Throughput, constant, and poisson profiles may issue requests concurrently;
 GuideLLM drains in-flight requests before it finishes. Use
 `profile: {kind: synchronous}` when each request must wait for the previous
 response, or set `max_concurrency: 1` where the selected profile supports it.
-vTune preserves GuideLLM's normal console and request-draining lifecycle.
+The `vtune` CLI preserves GuideLLM's normal console and request-draining lifecycle.
 
 ## Request formats
 
@@ -239,7 +247,7 @@ data: [{kind: db_file, path: /data/prompts.db}]
 data: [{kind: tar_file, path: /data/prompts.tar}]
 ```
 
-Files must use columns GuideLLM recognizes automatically. vTune does not yet
+Files must use columns GuideLLM recognizes automatically. vLLM Config Tuner does not yet
 expose GuideLLM's custom column-mapper option.
 
 ## Trace replay
@@ -264,7 +272,7 @@ benchmark:
   repeats: 3
 ```
 
-vTune takes the median score across repeats. It records successful, errored,
+The `vtune` CLI takes the median score across repeats. It records successful, errored,
 and incomplete request counts. A workload with more than 50% errored or
 incomplete requests is excluded; a trial with no eligible workload is not
 ranked. Remaining trials are ordered by lowest error percentage, lowest error

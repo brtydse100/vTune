@@ -7,11 +7,14 @@ from pathlib import Path
 
 from vtune.domain.trial_report import TrialReport
 from vtune.managers.scoring import TrialScore
-from vtune.reporting.analysis import parameter_importance
 from vtune.reporting.charts import (
     comparison_chart, effect_charts, history_chart, scatter_chart,
 )
 from vtune.reporting.context import ReportContext
+from vtune.reporting.benchmark_details import benchmark_details_table
+from vtune.reporting.importance import importance_section
+from vtune.reporting.methodology import metric_methodology
+from vtune.reporting.styles import dashboard_css
 from vtune.reporting.tables import (
     benchmark_table, changes_table, evidence_table, failures, metrics_table, ranking_table,
 )
@@ -39,7 +42,7 @@ def render_dashboard(
         _card("Interrupted", str(interrupted), f"Run {context.run_id}"),
     ))
     command = _best_command(directory, best)
-    importance = _importance(ranking)
+    importance = importance_section(ranking)
     request_total = (best.successful_requests + best.errored_requests
                      + best.incomplete_requests) if best else 0
     quality = (f"{best.errored_requests + best.incomplete_requests} failed or incomplete "
@@ -54,8 +57,8 @@ def render_dashboard(
                   if context.execution_mode == "local_parallel" else "")
     return f"""<!doctype html><html><head><meta charset='utf-8'>
 <meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>vTune · {escape(context.run_id)}</title><style>{_css()}</style></head><body>
-<header><div><p class='eyebrow'>vTune decision report</p><h1>{escape(context.run_id)}</h1>
+<title>vLLM Config Tuner · {escape(context.run_id)}</title><style>{dashboard_css()}</style></head><body>
+<header><div><p class='eyebrow'>vLLM Config Tuner decision report</p><h1>{escape(context.run_id)}</h1>
 <p>Maximize <code>{escape(metric)}</code> · Started {escape(context.started_at or 'unknown')}
 · Completed {escape(context.completed_at or 'unknown')} · Mode {escape(context.execution_mode)}
 </p>{source}</div>
@@ -68,8 +71,12 @@ Request quality: {escape(quality)}.</p>{changes_table(best, baseline)}
 <p class='note'>These are observed relationships, not guaranteed causal effects. Multiple settings may change together.</p>
 <h3>Reproduction command</h3><pre>{escape(command)}</pre></section>
 <section><h2>Selected trial metrics</h2>
-<p class='note'>Metrics are averaged across the selected trial's benchmark workloads. Values are shown only when the benchmark backend supplied them.</p>
-{metrics_table(best_report)}</section>
+    <p class='note'>Metrics are averaged across the selected trial's benchmark workloads. Values are shown only when the benchmark backend supplied them.</p>
+    {metrics_table(best_report)}</section>
+    <section><h2>Per-benchmark measurements</h2>
+    <p class='note'>Each row is one workload from one benchmark execution. Elapsed time is measured independently by vTune.</p>
+    {benchmark_details_table(best_report)}</section>
+    {metric_methodology()}
 {_llm_section(context)}
 <section><h2>Evidence behind the ranking</h2>{evidence_table(ranking)}
 <p class='note'>A workload is excluded from score calculation when more than half of its requests
@@ -92,19 +99,6 @@ def _card(label: str, value: str, detail: str) -> str:
             f"<small>{escape(detail)}</small></article>")
 
 
-def _importance(ranking: tuple[TrialScore, ...]) -> str:
-    if len(ranking) < 5:
-        return ("<p class='muted'>Not shown: fewer than 5 eligible tuned trials. "
-                "A percentage here would look precise without enough evidence.</p>")
-    values = parameter_importance(ranking)
-    confidence = ("Exploratory association across evaluated trials, not causation. For each setting, vTune groups trial scores by observed value and measures how far each group mean is from the overall mean. The displayed percentages normalize those between-group differences to 100%.")
-    bars = "".join(
-        f"<div class='hbar'><span>{escape(name)}</span><i style='width:{value * 70:.1f}%'></i>"
-        f"<b>{value:.1%}</b></div>" for name, value in values.items()
-    ) or "<p class='muted'>Not enough varied trials to estimate importance.</p>"
-    return f"<p class='note'>{confidence}</p>{bars}"
-
-
 def _llm_section(context: ReportContext) -> str:
     if context.llm_summary:
         text = escape(context.llm_summary).replace("\n", "<br>")
@@ -116,8 +110,8 @@ def _llm_section(context: ReportContext) -> str:
 
 def _footer(context: ReportContext) -> str:
     if context.llm_summary:
-        return "Generated from local vTune run artifacts; it includes a summary returned by the configured endpoint."
-    return "Generated from local vTune run artifacts. No external services were used."
+        return "Generated from local vLLM Config Tuner run artifacts; it includes a summary returned by the configured endpoint."
+    return "Generated from local vLLM Config Tuner run artifacts. No external services were used."
 
 
 def _best_command(directory: Path, best: TrialScore | None) -> str:
@@ -142,13 +136,3 @@ def _best_observed(
     return min(candidates, key=lambda item: (
         item.error_rate, item.errored_requests + item.incomplete_requests, -item.value,
     )) if candidates else None
-
-
-def _css() -> str:
-    return """*{box-sizing:border-box}body{margin:0;background:#f8fafc;color:#172033;font:15px system-ui}
-header,main,footer{max-width:1200px;margin:auto}header{padding:36px 24px 20px;display:flex;justify-content:space-between}
-h1{margin:.1rem 0;font-size:2rem}h2{margin-top:0}.eyebrow{color:#2563eb;font-weight:700;text-transform:uppercase}
-.status{background:#dbeafe;color:#1d4ed8;padding:8px 14px;border-radius:999px;height:max-content}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;background:none;padding:0}
-.cards article,section{background:white;border:1px solid #e2e8f0;border-radius:14px;padding:20px}.cards strong{display:block;font-size:1.65rem;margin:7px 0}.cards span,.cards small,.muted,.note{color:#64748b}
-main{padding:0 24px;display:grid;gap:18px}.split{display:grid;grid-template-columns:1fr 1fr;gap:24px}pre{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:9px;overflow:auto}
-.table{overflow:auto}table{border-collapse:collapse;width:100%}th,td{padding:9px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}code{font-size:12px}.hbar{display:flex;align-items:center;gap:8px;margin:9px 0}.hbar span{width:25%;overflow:hidden;text-overflow:ellipsis}.hbar i{display:block;height:13px;background:#2563eb;border-radius:5px}.hbar i.bad{background:#dc2626}.hbar b{white-space:nowrap}.warning{padding:12px;background:#fef2f2;color:#991b1b;border-radius:8px}svg{width:100%;max-height:310px}circle{fill:#2563eb}footer{padding:28px;color:#64748b}@media(max-width:800px){.cards,.split{grid-template-columns:1fr 1fr}}@media(max-width:520px){.cards,.split{grid-template-columns:1fr}}"""

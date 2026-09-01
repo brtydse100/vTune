@@ -1,6 +1,6 @@
 # Compatibility
 
-vTune targets Python 3.11–3.12 and Linux experiment hosts with NVIDIA GPUs.
+vLLM Config Tuner targets Python 3.11–3.12 and Linux experiment hosts with NVIDIA GPUs.
 
 Verified combinations:
 
@@ -26,10 +26,10 @@ Native Linux systems may not need either setting.
 
 ## CUDA compatibility
 
-vTune does not bundle CUDA and does not require one exact CUDA release. The
+vLLM Config Tuner does not bundle CUDA and does not require one exact CUDA release. The
 working combination is determined by vLLM, its PyTorch wheel, the NVIDIA
 driver, the GPU architecture, and any locally compiled kernels. Therefore,
-vTune cannot promise support for every CUDA version.
+vLLM Config Tuner cannot promise support for every CUDA version.
 
 Follow the [vLLM GPU installation guide](https://docs.vllm.ai/en/latest/getting_started/installation/gpu/)
 for the vLLM release you install. Also check NVIDIA's

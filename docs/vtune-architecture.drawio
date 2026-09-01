@@ -1,11 +1,11 @@
 <mxfile host="app.diagrams.net" modified="2026-08-28T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
-  <diagram id="vtune-architecture" name="vTune Architecture">
+  <diagram id="vtune-architecture" name="vLLM Config Tuner Architecture">
     <mxGraphModel dx="1800" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
 
-        <mxCell id="title" value="vTune Architecture" style="text;html=1;align=center;verticalAlign=middle;fontSize=28;fontStyle=1;fontColor=#172B4D;" vertex="1" parent="1">
+        <mxCell id="title" value="vLLM Config Tuner Architecture" style="text;html=1;align=center;verticalAlign=middle;fontSize=28;fontStyle=1;fontColor=#172B4D;" vertex="1" parent="1">
           <mxGeometry x="640" y="20" width="640" height="50" as="geometry"/>
         </mxCell>
         <mxCell id="subtitle" value="Managers coordinate workflows · Workers perform focused operations · Adapters isolate external tools" style="text;html=1;align=center;verticalAlign=middle;fontSize=15;fontColor=#5E6C84;" vertex="1" parent="1">

@@ -1,6 +1,6 @@
 # Complete commented YAML
 
-This is the complete vTune configuration surface in one file. It is valid YAML
+This is the complete vLLM Config Tuner configuration surface in one file. It is valid YAML
 using the current schema; replace the model and dataset paths before running
 it. Lines beginning with `#` are explanations or alternatives that can be
 uncommented.
@@ -9,9 +9,9 @@ Run experiments from Linux or WSL after installing `pip install
 "vtune[runtime]"`. Plain `pip install vtune` intentionally installs only the
 core configuration, artifact, and reporting functionality.
 
-vTune passes arbitrary `server` keys to vLLM and the contents of GuideLLM
+The `vtune` CLI passes arbitrary `server` keys to vLLM and the contents of GuideLLM
 `profile`, `constraints`, and `data` objects to GuideLLM. New upstream options
-therefore work without being added to a vTune allowlist.
+therefore work without being added to a vLLM Config Tuner allowlist.
 
 ```yaml
 experiment:
@@ -72,7 +72,7 @@ tune_env:
 
 benchmark:
   engine: guidellm  # guidellm (default) or vllm
-  repeats: 3  # Default: 1. vTune uses the median across repeated runs.
+  repeats: 3  # Default: 1. The vtune CLI uses the median across repeated runs.
   runs:
     # Each named run is one GuideLLM invocation against the same server.
     # A run must contain exactly one data item.
@@ -198,13 +198,13 @@ execution:
   #   min: 8100
   #   max: 8199
   # Remove server.port and CUDA_VISIBLE_DEVICES from env/tune_env in this mode;
-  # vTune assigns both. Each trial's tensor-parallel-size must fit a worker.
+  # The vtune CLI assigns both. Each trial's tensor-parallel-size must fit a worker.
 
 logging:
   level: INFO  # DEBUG, INFO, WARNING, ERROR, or CRITICAL. Default: INFO.
 
 # Optional: create a concise OpenAI-compatible summary in report.html.
-# Export the key before running; vTune never saves the key in YAML or artifacts.
+# Export the key before running; the vtune CLI never saves the key in YAML or artifacts.
 # HTTPS is required except for localhost, 127.0.0.0/8, or ::1. Redaction is
 # name-based and cannot guarantee arbitrary values contain no secrets.
 # analysis:
@@ -218,7 +218,7 @@ logging:
 ## vLLM Bench Serve alternative
 
 Replace the `benchmark` section above with this section to use vLLM's native
-benchmark. vTune supplies the model, server address, and result paths:
+benchmark. The `vtune` CLI supplies the model, server address, and result paths:
 
 ```yaml
 benchmark:
@@ -246,7 +246,7 @@ custom, and prefix-repetition examples plus arbitrary argument rules.
 
 - A GuideLLM run allows one dataset item. Use multiple named runs for several
   workloads; multi-dataset GuideLLM runs are a roadmap item.
-- There is no separate warm-up switch in vTune. If the installed GuideLLM
+- There is no separate warm-up switch in vLLM Config Tuner. If the installed GuideLLM
   version exposes a warm-up field for a profile, place it inside that profile.
 - `analysis.llm_summary` is optional and sends only the top-ranked,
   name-redacted trial values to the configured OpenAI-compatible endpoint.

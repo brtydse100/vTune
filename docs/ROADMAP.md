@@ -1,4 +1,4 @@
-# vTune Future Implementation Roadmap
+# vLLM Config Tuner Future Implementation Roadmap
 
 This roadmap lists capabilities that follow the first MVP described in
 [MVP_SPEC.md](MVP_SPEC.md). It is organized by dependency and product value,
@@ -137,7 +137,7 @@ Safety and correctness requirements:
 - Version/provenance metadata.
 - JSON Schema validation.
 - No implicit trust of emitted file paths.
-- Clear statement that vTune cannot guarantee comparability across arbitrary
+- Clear statement that vLLM Config Tuner cannot guarantee comparability across arbitrary
   benchmark implementations.
 
 ### Dataset adapters
@@ -200,7 +200,7 @@ configurations. Reports distinguish which target proposed each trial.
 - User-provided Optuna sampler integration.
 
 Each sampler must declare supported parameter types and conditional-space
-behavior. vTune should reject incompatible configurations during validation.
+behavior. The `vtune` CLI should reject incompatible configurations during validation.
 
 ### Feasibility-aware search
 
@@ -375,7 +375,7 @@ Acceptance criteria for this feature:
 
 - Two trials can run simultaneously on disjoint GPU sets and distinct ports.
 - A failure or timeout in one instance does not interrupt the other.
-- Ctrl+C removes every vTune-owned server and benchmark process without
+- Ctrl+C removes every `vtune`-owned server and benchmark process without
   terminating unrelated processes.
 - The scheduler never executes the same trial concurrently on two workers.
 - Overlapping GPUs are rejected by default.

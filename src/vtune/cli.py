@@ -18,11 +18,12 @@ from vtune.reporting.offline import regenerate_report
 from vtune.reproduction.display import reproduce_trial
 from vtune.reproduction.export import export_vllm_command
 from vtune.terminal import with_debug_logging
+from vtune.terminal_style import styled
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="vtune", description="Experiment with vLLM serving configurations.",
+        prog="vtune", description="Benchmark and tune vLLM serving configurations.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Commands:
   vtune --config experiment.yaml                 Start an experiment
@@ -82,13 +83,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 0
             outcome = asyncio.run(Orchestrator(config).run())
     except CLIUsageError as error:
-        print(f"Command error: {error}", file=sys.stderr)
+        print(styled(f"Command error: {error}", "red", sys.stderr), file=sys.stderr)
         return 2
     except ConfigError as error:
-        print(f"Configuration error: {error}", file=sys.stderr)
+        print(styled(f"Configuration error: {error}", "red", sys.stderr), file=sys.stderr)
         return 2
     except (OSError, TypeError, ValueError) as error:
-        print(f"Experiment error: {error}", file=sys.stderr)
+        print(styled(f"Experiment error: {error}", "red", sys.stderr), file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         print("Experiment interrupted", file=sys.stderr)

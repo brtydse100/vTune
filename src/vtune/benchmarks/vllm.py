@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 from vtune.config.models import VTuneConfig
 from vtune.config.runtime import model_path
 from vtune.domain.benchmark import BenchmarkResult, WorkloadResult
+from vtune.benchmarks.metrics import normalize_vllm_metrics
 
 _RESERVED = {"backend", "model", "host", "port", "base-url", "save-result", "append-result",
              "result-dir", "result-filename"}
@@ -53,15 +54,7 @@ def parse_result(path: Path, run_name: str) -> BenchmarkResult:
         document = _mapping(json.loads(source.read_text(encoding="utf-8")), "result")
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise ValueError(f"Cannot read vLLM benchmark JSON result: {error}") from error
-    metrics = dict(document)
-    _aliases(metrics)
-    completed = _count(document.get("completed"))
-    failed = _count(document.get("failed"))
-    requested = _count(document.get("num_prompts"))
-    metrics["request_totals"] = {
-        "successful": completed, "errored": failed,
-        "incomplete": max(0, requested - completed - failed),
-    }
+    metrics = normalize_vllm_metrics(document)
     configuration = {key: document[key] for key in (
         "backend", "model_id", "num_prompts", "request_rate", "burstiness",
         "max_concurrency", "dataset_name",
@@ -79,20 +72,6 @@ def _argument(name: str, value: object) -> tuple[str, ...]:
     if value is None or not isinstance(value, str | int | float):
         raise ValueError(f"Unsupported vLLM benchmark value for '{name}'")
     return flag, str(value)
-
-
-def _aliases(metrics: dict[str, object]) -> None:
-    for source, target in {
-        "output_throughput": "output_tokens_per_second",
-        "request_throughput": "requests_per_second",
-        "total_token_throughput": "total_tokens_per_second",
-    }.items():
-        if source in metrics:
-            metrics[target] = metrics[source]
-
-
-def _count(value: object) -> int:
-    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
 
 
 def _version() -> str:

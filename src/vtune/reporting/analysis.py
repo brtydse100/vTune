@@ -11,9 +11,12 @@ from vtune.managers.scoring import TrialScore
 
 
 DEFAULT_METRICS = {
+    "requests_per_second": ("requests_per_second", "request_throughput"),
     "throughput_tokens_per_second": ("output_tokens_per_second", "output_throughput"),
-    "ttft_ms": ("time_to_first_token_ms", "time_to_first_token", "mean_ttft_ms",
-                "median_ttft_ms", "p99_ttft_ms"),
+    "total_tokens_per_second": ("total_tokens_per_second", "total_token_throughput"),
+    "ttft_ms": ("time_to_first_token_ms", "time_to_first_token", "mean_ttft_ms", "median_ttft_ms", "p99_ttft_ms"),
+    "tpot_ms": ("time_per_output_token_ms", "mean_tpot_ms", "median_tpot_ms", "p99_tpot_ms"),
+    "itl_ms": ("inter_token_latency_ms", "mean_itl_ms", "median_itl_ms", "p99_itl_ms"),
     "end_to_end_ms": ("end_to_end_latency_ms", "end_to_end_latency", "mean_e2el_ms",
                       "median_e2el_ms", "p99_e2el_ms"),
     "total_time_seconds": ("total_time_seconds", "total_time", "duration"),
@@ -91,15 +94,22 @@ def _metric_summary(report: TrialReport, aliases: tuple[str, ...]) -> dict[str, 
         for workload in benchmark.get("workloads", ()):
             if not isinstance(workload, Mapping) or not isinstance(workload.get("metrics"), Mapping):
                 continue
-            metrics = workload["metrics"]
-            for name in aliases:
-                if (summary := _summary(name, metrics.get(name))):
-                    summaries.append(summary)
-                    break
+            summaries.append(workload_metric_summary(workload["metrics"], aliases))
     if not summaries:
         return {}
     return {name: fmean(values) for name in ("average", "median", "p99")
             if (values := [summary[name] for summary in summaries if name in summary])}
+
+
+def workload_metric_summary(
+    metrics: Mapping[str, object], aliases: tuple[str, ...],
+) -> dict[str, float]:
+    """Merge available statistics across canonical and legacy aliases."""
+    result: dict[str, float] = {}
+    for name in aliases:
+        for statistic, value in _summary(name, metrics.get(name)).items():
+            result.setdefault(statistic, value)
+    return result
 
 
 def _summary(name: str, value: object) -> dict[str, float]:
@@ -116,7 +126,8 @@ def _summary(name: str, value: object) -> dict[str, float]:
         return {}
     observed = value.get("successful")
     source = observed if isinstance(observed, Mapping) else value
-    result = {"average": number for key, name in (("mean", "average"), ("average", "average"),
+    result = {statistic: number for key, statistic in (
+              ("mean", "average"), ("average", "average"),
               ("median", "median"), ("p99", "p99"))
               if isinstance((number := source.get(key)), int | float)
               and not isinstance(number, bool)}
@@ -128,6 +139,8 @@ def _value(value: object) -> float | None:
         return float(value)
     if not isinstance(value, Mapping):
         return None
+    if isinstance((average := value.get("average")), int | float) and not isinstance(average, bool):
+        return float(average)
     successful = value.get("successful")
     if isinstance(successful, Mapping):
         value = successful.get("mean")

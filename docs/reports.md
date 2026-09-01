@@ -15,12 +15,32 @@ Top-configuration tables show only settings that varied in the experiment and
 remove duplicate configurations. Failed and interrupted trials remain visible
 without being ranked as successful results.
 
-The selected-trial table shows available throughput, TTFT, end-to-end latency,
-and total-time measurements with only the average, median, or P99 values the
-backend actually supplied. Chart axes
+The selected-trial summary shows available throughput, TTFT, TPOT, ITL,
+end-to-end latency, and total-time measurements. A detailed table shows every
+named benchmark execution and workload, including its backend, repeat, `vtune`
+wall-clock elapsed time, throughput, median latency, and P99 latency. Only
+statistics the backend actually supplied are displayed. Chart axes
 are labelled. Parameter importance is exploratory: it groups observed scores
 by each setting value and normalizes the between-group score differences; it
 does not establish causation.
+
+## Metric calculations
+
+- **Requests/s** is completed requests divided by benchmark measurement time.
+- **Output tokens/s** is generated tokens divided by measurement time; total
+  tokens/s includes prompt and output tokens.
+- **TTFT** measures request start to first generated token.
+- **TPOT** measures average time per output token after the first token.
+- **ITL** measures delay between consecutive streamed tokens.
+- **End-to-end latency** measures request start through complete response.
+- **Median** is P50; **P99** means 99% of observations are at or below the value.
+- **Elapsed** is measured by the `vtune` CLI from benchmark subprocess launch through
+  JSON parsing and excludes vLLM server startup.
+
+Backends calculate request distributions and percentiles. vLLM Config Tuner normalizes
+names and units but does not derive missing percentiles. Eligible workloads are
+averaged within an execution, repeated executions use the median score, and
+named benchmark scores are averaged into the trial score.
 
 If `analysis.llm_summary` is configured, the report also includes a short
 OpenAI-compatible summary. Its API key is read only from the named environment
