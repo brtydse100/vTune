@@ -4,6 +4,21 @@
 
 _No changes yet._
 
+## v0.1.0a12 — Live benchmark observability and failure policy
+
+_September 2, 2026_
+
+- Stream subprocess output into benchmark logs while commands are running and
+  show live request counters or duration timers with clearer trial headings.
+- Add configurable request-failure tolerance, an accept-any policy, and
+  separate failed-request artifacts for GuideLLM and vLLM Bench Serve.
+- Persist successful, failed, errored, and incomplete request counts plus the
+  failure percentage for every benchmark repeat in JSON, CSV, and HTML.
+- Add offline reclassification of immutable run data under a new request-error
+  policy without relaunching vLLM or GuideLLM.
+- Fix repeated benchmark drain paths, fast-benchmark final counters, and
+  repeat score messaging; verify canonical normalization for both backends.
+
 ## v0.1.0a11 — vLLM Optimizer rebrand
 
 _September 2, 2026_

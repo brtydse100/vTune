@@ -98,9 +98,9 @@ class VLLMDrainWorker:
     def _evidence_path(self, context: TrialContext) -> Path:
         directory = attempt_directory(self._artifacts, context)
         if self._warmup_index:
-            directory /= "warmups" / f"{self._warmup_index:03d}"
+            directory = directory / "warmups" / f"{self._warmup_index:03d}"
         elif self._repeat_index:
-            directory /= "repeats" / f"{self._repeat_index:03d}"
+            directory = directory / "repeats" / f"{self._repeat_index:03d}"
         return directory / self._run_name / "drain.json"
 
     def _artifact_key(self) -> str:

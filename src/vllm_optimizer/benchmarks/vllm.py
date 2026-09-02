@@ -15,7 +15,7 @@ from vllm_optimizer.domain.benchmark import BenchmarkResult, WorkloadResult
 from vllm_optimizer.benchmarks.metrics import normalize_vllm_metrics
 
 _RESERVED = {"backend", "model", "host", "port", "base-url", "save-result", "append-result",
-             "result-dir", "result-filename"}
+             "result-dir", "result-filename", "save-detailed"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,7 +45,7 @@ def build_plan(config: VTuneConfig, run: Mapping[str, object], endpoint: str,
             "--host", parsed.hostname or "127.0.0.1", "--port", str(parsed.port or 8000)]
     for key, value in normalized.items():
         argv.extend(_argument(key, value))
-    argv.extend(("--save-result", "--result-dir", str(directory),
+    argv.extend(("--save-result", "--save-detailed", "--result-dir", str(directory),
                  "--result-filename", result.name, "--disable-tqdm"))
     return VLLMBenchPlan(name, tuple(argv), directory, result,
                          directory / "benchmark.log")

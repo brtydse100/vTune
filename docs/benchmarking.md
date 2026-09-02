@@ -20,6 +20,12 @@ remain absent when the backend did not supply them; vLLM Optimizer never
 relabels an average as a percentile. GuideLLM request latency is converted from
 seconds to milliseconds. The raw backend JSON remains available unchanged.
 
+Benchmark output is flushed to `benchmark.log` while it runs. A request limit
+adds a live completed/total counter; a duration-only GuideLLM run adds an
+elapsed/limit timer. Set `benchmark.max_failure_percentage` to accept a bounded
+percentage of explicit errors or incomplete requests. Their backend-provided
+details are saved separately in `failed_requests.json`.
+
 ## vLLM Bench Serve
 
 Use `args` exactly as flags following `vllm bench serve`:

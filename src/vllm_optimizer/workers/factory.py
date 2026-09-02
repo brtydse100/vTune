@@ -1,5 +1,6 @@
 """Assemble the workers required for one resolved trial."""
 
+from collections.abc import Callable
 from pathlib import Path
 
 from vllm_optimizer.benchmarks.configuration import (
@@ -23,6 +24,7 @@ from vllm_optimizer.workers.vllm_benchmark import VLLMBenchmarkWorker
 def build_trial_workers(
     config: VTuneConfig, parameters: TrialParameters, directory: Path,
     slot: WorkerSlot | None = None,
+    benchmark_progress: Callable[[str, int | None, float, float], None] | None = None,
 ) -> tuple[Worker, ...]:
     execution = config.execution
     grace = positive(execution, "shutdown_grace", 15)
@@ -53,9 +55,12 @@ def build_trial_workers(
     for run in configured_runs(config):
         for warmup in range(1, warmups + 1):
             workers.append(benchmark_worker(
-                config, run, ProcessRunner(debug, f"{engine}:{run['name']}:warmup"), directory,
+                config, run, ProcessRunner(
+                    debug, f"{engine}:{run['name']}:warmup", capture=True,
+                ), directory,
                 timeout=timeout_for_run(run, config.timeouts.get("benchmark")),
                 shutdown_grace=grace, warmup_index=warmup,
+                progress=benchmark_progress,
             ))
             workers.append(VLLMDrainWorker(
                 directory, str(run["name"]), drain_grace,
@@ -64,9 +69,12 @@ def build_trial_workers(
         for repeat in range(1, repeats + 1):
             repeat_index = repeat if repeats > 1 else None
             workers.append(benchmark_worker(
-                config, run, ProcessRunner(debug, f"{engine}:{run['name']}"), directory,
+                config, run, ProcessRunner(
+                    debug, f"{engine}:{run['name']}", capture=True,
+                ), directory,
                 timeout=timeout_for_run(run, config.timeouts.get("benchmark")),
                 shutdown_grace=grace, repeat_index=repeat_index,
+                progress=benchmark_progress,
             ))
             workers.append(VLLMDrainWorker(
                 directory, str(run["name"]), drain_grace,

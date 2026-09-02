@@ -49,7 +49,7 @@ class TerminalLogger:
         owner = f" · {worker}" if worker else ""
         self._write(
             "INFO", f"\n{_bar(position, total)} Trial {position} of {total} · {trial_id}{owner}",
-            "cyan",
+            "highlight",
         )
         if values:
             width = max(map(len, values))
@@ -62,10 +62,12 @@ class TerminalLogger:
         label, key = _stage_label(worker), f"{scope or ''}:{worker}"
         with self._lock:
             if event == "starting":
-                self._stages[key] = (label, scope, monotonic())
+                self._stages[key] = (label, scope, monotonic(), None)
                 self._render_live()
                 return
-            label, _, started = self._stages.pop(key, (label, scope, monotonic()))
+            label, _, started, _ = self._stages.pop(
+                key, (label, scope, monotonic(), None),
+            )
             self._clear_live()
             icon = "✓" if event == "completed" else "✗"
             tone = "green" if event == "completed" else "red"
@@ -74,8 +76,32 @@ class TerminalLogger:
                         tone)
             self._render_live()
 
-    def benchmark_score(self, name: str, repeat: int | None, score: float | None) -> None:
+    def benchmark_progress(
+        self, worker: str, current: int | None, elapsed: float, limit: float,
+        scope: str | None = None,
+    ) -> None:
+        key = f"{scope or ''}:{worker}"
+        with self._lock:
+            if key not in self._stages:
+                return
+            label, owner, started, _ = self._stages[key]
+            if current is None:
+                detail = f"{_elapsed(elapsed)}/{_elapsed(limit)}"
+            else:
+                detail = f"{current if current >= 0 else '?'}/{int(limit)} requests"
+            self._stages[key] = (label, owner, started, detail)
+            self._render_live()
+
+    def benchmark_score(
+        self, name: str, repeat: int | None, score: float | None,
+        successful_requests: int = 0,
+    ) -> None:
         suffix = f" · repeat {repeat}" if repeat is not None else ""
+        if score is None and successful_requests:
+            self.warning(
+                f"Benchmark {name}{suffix} — waiting for the required measured repeats"
+            )
+            return
         if score is None:
             self.warning(f"Benchmark {name}{suffix} — no eligible score; all requests failed")
         else:
@@ -97,9 +123,11 @@ class TerminalLogger:
             return
         self._clear_live()
         phase = "⠋⠙⠹⠸⠼⠴⠦⠧"[int(monotonic() * 8) % 8]
-        for label, scope, started in self._stages.values():
+        for label, scope, started, detail in self._stages.values():
             prefix = f"{scope} " if scope else ""
-            print(f"{phase} {prefix}{label} · {_elapsed(monotonic() - started)}", flush=True)
+            progress = f"{detail} · " if detail else ""
+            message = f"{phase} {prefix}{label} · {progress}{_elapsed(monotonic() - started)}"
+            print(styled(message, "highlight", sys.stdout), flush=True)
         self._drawn = len(self._stages)
 
     def _clear_live(self) -> None:

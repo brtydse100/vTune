@@ -39,9 +39,24 @@ def configured_min_repeats(config: VTuneConfig) -> int:
     return value
 
 
+def configured_failure_percentage(config: VTuneConfig) -> float:
+    accept_any = config.benchmark.get("accept_any_request_failures", False)
+    if not isinstance(accept_any, bool):
+        raise ValueError("benchmark.accept_any_request_failures must be true or false")
+    if accept_any:
+        return 100.0
+    value = config.benchmark.get("max_failure_percentage", 0)
+    if (isinstance(value, bool) or not isinstance(value, int | float)
+            or not 0 <= value <= 100):
+        raise ValueError("benchmark.max_failure_percentage must be between 0 and 100")
+    return float(value)
+
+
 def configured_runs(config: VTuneConfig) -> tuple[Mapping[str, object], ...]:
     unknown = set(config.benchmark) - {
         "engine", "runs", "repeats", "warmup_repeats", "min_repeats",
+        "max_failure_percentage",
+        "accept_any_request_failures",
     }
     if unknown:
         raise ValueError(f"Unsupported benchmark setting(s): {', '.join(sorted(unknown))}")

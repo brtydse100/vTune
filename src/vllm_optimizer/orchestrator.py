@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
 
-from vllm_optimizer.benchmarks.configuration import configured_min_repeats, configured_runs
+from vllm_optimizer.benchmarks.configuration import configured_failure_percentage, configured_min_repeats, configured_runs
 from vllm_optimizer.config.models import VTuneConfig
 from vllm_optimizer.config.preflight import validate_config
 from vllm_optimizer.config.runtime import baseline_enabled, logging_level, maximize_metric
@@ -47,6 +47,7 @@ class Orchestrator:
         run_names = tuple(str(run["name"]) for run in configured_runs(config))
         self._scoring = ScoringManager(
             self._metric, configured_min_repeats(config), run_names,
+            configured_failure_percentage(config),
         )
         self._manifest = ManifestWriter({})
         self._trial_executor: TrialExecutor | None = None

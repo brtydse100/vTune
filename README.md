@@ -73,6 +73,8 @@ tune:
     values: [8, 16]
 benchmark:
   engine: guidellm  # Default. Use vllm for `vllm bench serve`.
+  max_failure_percentage: 2  # Accept up to 2% errored or incomplete requests.
+  # accept_any_request_failures: true  # Ignore the percentage (one success still required).
   runs:
     - name: throughput
       profile:
@@ -146,8 +148,10 @@ logging:
 ```
 
 Supported levels are `DEBUG`, `INFO`, `WARNING`, `ERROR`, and `CRITICAL`.
-Full per-trial log files are always saved. `--verbose` overrides the configured
-level with `DEBUG` for that invocation.
+Full per-trial log files are always saved and benchmark logs are flushed while
+the command runs. Request-limited runs show a live request counter; duration-only
+runs show an elapsed/limit timer. `--verbose` also mirrors subprocess output to
+the terminal and overrides the configured level with `DEBUG` for that invocation.
 
 Retry one or more selected trials into a new immutable linked run:
 

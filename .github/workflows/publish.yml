@@ -8,7 +8,7 @@ on:
       ref:
         description: Immutable tag to publish
         required: true
-        default: v0.1.0a11
+        default: v0.1.0a12
 
 permissions:
   contents: read

@@ -9,14 +9,19 @@ from pathlib import Path
 from time import monotonic
 
 from vllm_optimizer.benchmarks.vllm import build_plan, parse_result
+from vllm_optimizer.benchmarks.configuration import configured_failure_percentage
+from vllm_optimizer.benchmarks.failures import save_failed_requests
 from vllm_optimizer.config.models import VTuneConfig
 from vllm_optimizer.domain.results import Failure, WorkerResult
 from vllm_optimizer.reproduction.models import CommandRecord
 from vllm_optimizer.workers.attempts import attempt_directory
 from vllm_optimizer.workers.base import TrialContext
-from vllm_optimizer.workers.completion import reported_request_total, request_count_failure
+from vllm_optimizer.workers.completion import (
+    observed_requests, reported_request_total, request_count_failure,
+)
 from vllm_optimizer.workers.failure_details import classified_failure
 from vllm_optimizer.workers.process import ManagedProcess, ProcessRunner, ProcessSpec
+from vllm_optimizer.workers.progress import BenchmarkProgress, ProgressCallback
 
 
 class VLLMBenchmarkWorker:
@@ -24,6 +29,7 @@ class VLLMBenchmarkWorker:
         self, config: VTuneConfig, run: Mapping[str, object], runner: ProcessRunner,
         artifacts: Path, timeout: float = 180, shutdown_grace: float = 5,
         repeat_index: int | None = None, warmup_index: int | None = None,
+        progress: ProgressCallback | None = None,
     ) -> None:
         if timeout <= 0 or shutdown_grace < 0:
             raise ValueError("benchmark timeout must be positive and grace non-negative")
@@ -35,6 +41,7 @@ class VLLMBenchmarkWorker:
         self._run_name = str(run.get("name", "invalid"))
         self._repeat_index = repeat_index
         self._warmup_index = warmup_index
+        self._progress = progress
 
     @property
     def name(self) -> str:
@@ -65,6 +72,8 @@ class VLLMBenchmarkWorker:
                 plan.run_name, self._repeat_index,
             ))
             started = monotonic()
+            progress = BenchmarkProgress("vllm", self._run, self.name, self._progress)
+            await progress.prepare(endpoint)
             process = await self._runner.start(
                 ProcessSpec(plan.argv, env=self._environment()), plan.log_path
             )
@@ -76,6 +85,7 @@ class VLLMBenchmarkWorker:
         except Exception as error:
             return self._failed("benchmark_launch_failed", str(error))
         context.values[self._ownership_key] = process
+        progress.start(process)
         suffix = (f"_warmup_{self._warmup_index}" if self._warmup_index
                   else f"_repeat_{self._repeat_index}" if self._repeat_index else "")
         prefix = f"benchmark_{plan.run_name}{suffix}"
@@ -89,6 +99,8 @@ class VLLMBenchmarkWorker:
                 f"vLLM benchmark '{plan.run_name}' timed out after {self._timeout:g}s "
                 f"and was stopped; full log: {plan.log_path}", True,
             ))
+        finally:
+            await progress.stop()
         if returncode:
             return WorkerResult.failed(classified_failure(
                 plan.log_path, "benchmark_failed", f"vLLM bench serve exited with code {returncode}"
@@ -103,15 +115,23 @@ class VLLMBenchmarkWorker:
             return WorkerResult.failed(classified_failure(
                 plan.log_path, "benchmark_result_invalid", str(error)
             ))
+        progress.complete(process, observed_requests(result))
+        failed_path = plan.directory / "failed_requests.json"
+        if save_failed_requests(plan.json_path, "vllm", failed_path):
+            context.artifacts[f"{prefix}_failed_requests"] = str(failed_path)
+        context.artifacts[f"{prefix}_json"] = str(plan.json_path)
         failure = request_count_failure(
             result, reported_request_total(result), "vLLM Bench Serve",
+            configured_failure_percentage(self._config),
         )
         if failure is not None:
+            if self._warmup_index is None:
+                previous = context.values.get("observed_benchmark_results", ())
+                context.values["observed_benchmark_results"] = (*previous, result)
             return WorkerResult.failed(failure)
         previous = context.values.get("benchmark_results", ())
         if self._warmup_index is None:
             context.values["benchmark_results"] = (*previous, result)
-        context.artifacts[f"{prefix}_json"] = str(plan.json_path)
         return WorkerResult.completed()
 
     async def cleanup(self, context: TrialContext) -> None:
@@ -120,7 +140,8 @@ class VLLMBenchmarkWorker:
             await process.stop(self._shutdown_grace)
 
     def _environment(self) -> dict[str, str]:
-        return {key: str(value) for key, value in self._config.env.items()}
+        return {**{key: str(value) for key, value in self._config.env.items()},
+                "PYTHONUNBUFFERED": "1"}
 
     @staticmethod
     def _failed(code: str, message: str) -> WorkerResult[None]:

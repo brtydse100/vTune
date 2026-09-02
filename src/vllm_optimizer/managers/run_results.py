@@ -113,7 +113,8 @@ def _trial_document(
                    "retryable": report.failure.retryable}
     document = {"trial_id": report.trial_id, "status": report.status.value,
                 "failure": failure, "benchmark_count": len(report.benchmarks),
-                "metrics": default_metrics(report)}
+                "metrics": default_metrics(report),
+                "benchmarks": report.to_dict()["benchmarks"]}
     if report.execution:
         document["execution"] = dict(report.execution)
     if source is not None:

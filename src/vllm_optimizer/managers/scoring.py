@@ -38,7 +38,7 @@ class QualitySummary:
 class ScoringManager:
     def __init__(
         self, metric: str, minimum_repeats: int = 1,
-        required_runs: tuple[str, ...] = (),
+        required_runs: tuple[str, ...] = (), max_failure_percentage: float = 0,
     ) -> None:
         if not metric.strip():
             raise ValueError("optimization.maximize must not be empty")
@@ -48,6 +48,11 @@ class ScoringManager:
         self.metric = metric
         self.minimum_repeats = minimum_repeats
         self.required_runs = required_runs
+        if (isinstance(max_failure_percentage, bool)
+                or not isinstance(max_failure_percentage, int | float)
+                or not 0 <= max_failure_percentage <= 100):
+            raise ValueError("maximum failure percentage must be between 0 and 100")
+        self.max_failure_percentage = float(max_failure_percentage)
 
     def score(self, results: tuple[BenchmarkResult, ...]) -> float | None:
         scores = self.score_each(results)
@@ -59,7 +64,8 @@ class ScoringManager:
     def score_each(self, results: tuple[BenchmarkResult, ...]) -> dict[str, float]:
         grouped: dict[str, list[float]] = {}
         for result in results:
-            values = [value for workload in result.workloads if _eligible(workload.metrics)
+            values = [value for workload in result.workloads
+                      if _eligible(workload.metrics, self.max_failure_percentage)
                       if (value := _metric_value(workload.metrics.get(self.metric))) is not None]
             if values:
                 grouped.setdefault(result.run_name, []).append(fmean(values))
@@ -72,8 +78,7 @@ class ScoringManager:
             item.error_rate, item.errored_requests + item.incomplete_requests, -item.value,
         )))
 
-    @staticmethod
-    def quality(results: tuple[BenchmarkResult, ...]) -> QualitySummary:
+    def quality(self, results: tuple[BenchmarkResult, ...]) -> QualitySummary:
         successful = errored = incomplete = excluded = 0
         for result in results:
             for workload in result.workloads:
@@ -81,8 +86,11 @@ class ScoringManager:
                 successful += counts[0]
                 errored += counts[1]
                 incomplete += counts[2]
-                excluded += not _eligible(workload.metrics)
+                excluded += not self._eligible(workload.metrics)
         return QualitySummary(successful, errored, incomplete, excluded)
+
+    def _eligible(self, metrics: Mapping[str, object]) -> bool:
+        return _eligible(metrics, self.max_failure_percentage)
 
 
 def _metric_value(value: object) -> float | None:
@@ -117,7 +125,8 @@ def _count(value: object) -> int:
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
 
 
-def _eligible(metrics: Mapping[str, object]) -> bool:
+def _eligible(metrics: Mapping[str, object], max_failure_percentage: float = 0) -> bool:
     successful, errored, incomplete = _request_counts(metrics)
     total = successful + errored + incomplete
-    return total > 0 and errored == 0 and incomplete == 0
+    return (successful > 0 and total > 0
+            and 100 * (errored + incomplete) / total <= max_failure_percentage)
