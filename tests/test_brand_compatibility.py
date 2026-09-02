@@ -7,7 +7,7 @@ from vllm_optimizer.cli import build_parser, legacy_main
 
 
 def test_canonical_and_legacy_packages_share_public_api() -> None:
-    assert vllm_optimizer.__version__ == "0.1.0a11"
+    assert vllm_optimizer.__version__ == "0.1.0a12"
     assert vtune.__version__ == vllm_optimizer.__version__
     assert vtune.Orchestrator is vllm_optimizer.Orchestrator
 

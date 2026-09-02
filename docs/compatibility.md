@@ -16,10 +16,12 @@ available in this workspace. They remain explicitly unvalidated:
 | 2026-09-01 | H100 | 1 | native Linux | — | — | — | — | Not run: host unavailable |
 | 2026-09-01 | H100 | 2+ | tensor parallel | — | — | — | — | Not run: host unavailable |
 | 2026-09-01 | RTX 3080 | 1 | WSL2 attempt | 596.36 / CUDA 13.2 | 3.12.3 | 0.28.0 / 0.7.3 | facebook/opt-125m | Failed: vLLM reports `UVA is not available` |
+| 2026-09-02 | RTX 3080 | 1 | WSL2 V0 smoke | 596.36 | 3.12.3 | 0.19.0 / 0.7.3 | local OPT-125M | Passed: two repeats/backend, 10/10 requests/backend, clean drains |
 
-The RTX 3080 row is an environment diagnostic, not a supported native-Linux
-validation. It was attempted with explicit port 8000 and a single GPU; no
-benchmark results were accepted.
+The RTX 3080 rows are environment diagnostics, not supported native-Linux
+validation. The 0.28.0 attempt produced no accepted benchmark result. The V0
+smoke verified streaming, final counters, request totals, reports, cleanup, and
+offline reclassification, but used a vLLM version outside the supported range.
 
 The matrix still needs evidence for explicit ports, interruption cleanup, long
 generation, and at least one multi-GPU run on each supported native-Linux GPU.

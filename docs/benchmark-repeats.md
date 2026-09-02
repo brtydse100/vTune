@@ -4,13 +4,21 @@
 ```yaml
 benchmark:
   repeats: 3
+  max_failure_percentage: 2
 ```
 
-The `vllm-opt` CLI takes the median score across repeats. It records successful, errored,
-and incomplete request counts. A workload with more than 50% errored or
-incomplete requests is excluded; a trial with no eligible workload is not
-ranked. Remaining trials are ordered by lowest error percentage, lowest error
-count, then highest configured metric.
+The `vllm-opt` CLI takes the median score across repeats. It records successful,
+errored, and incomplete request counts. `max_failure_percentage` accepts a
+number from `0` through `100` and defaults to `0`. A workload at or below that
+percentage is eligible when at least one request succeeded; a workload above it
+is excluded. Request-count runs also require the expected total to be present.
+A trial with no eligible workload is not ranked. Remaining trials are ordered
+by lowest error percentage, lowest error count, then highest configured metric.
+
+When failures occur, each benchmark artifact directory contains
+`failed_requests.json` with the errored and incomplete details exposed by the
+selected backend. Treat this file as workload data because it can contain
+request arguments or outputs.
 
 See the official
 [GuideLLM dataset guide](https://github.com/vllm-project/guidellm/blob/main/docs/guides/datasets.md)

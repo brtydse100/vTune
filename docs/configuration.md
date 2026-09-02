@@ -137,9 +137,16 @@ exposes normalized metrics to scoring and reports.
 Set `benchmark.warmup_repeats` to discard initial measurements and
 `benchmark.min_repeats` to require enough measured repeats for ranking. The
 default minimum is 1 for backward compatibility; use 2 or more for confidence
-intervals. Every configured run must meet the minimum with clean request totals
-or the trial is not ranked. Set `analysis.drift_threshold` to change the
-sequential finalist rerun threshold (default 0.05).
+intervals. Set `benchmark.max_failure_percentage` from `0` through `100` to
+choose the largest acceptable percentage of errored or incomplete requests. It
+defaults to strict `0`; the configured boundary is accepted. Set
+`accept_any_request_failures: true` to ignore the failure percentage while
+still requiring at least one successful request and a usable metric. Normalized
+JSON, CSV, and HTML results show successful and failed counts for every repeat.
+Every configured run must meet the minimum and failure policy or the trial is
+not ranked. Set
+`analysis.drift_threshold` to change the sequential finalist rerun threshold
+(default 0.05).
 
 Every supported profile, constraint, request format, and dataset form has a
 copyable examples in [benchmark configuration](benchmarking.md). See the
@@ -163,6 +170,11 @@ a documented one-hour hard cap when no explicit timeout is provided; set
 `timeouts.benchmark` explicitly for longer workloads. vLLM Bench Serve uses a
 180-second default when no explicit timeout is provided. The literal value
 `auto` is not accepted.
+
+`benchmark.log` is flushed continuously. Request-limited runs show processed
+requests against their limit; duration-only runs show elapsed time against the
+configured duration. If a backend reports failed or incomplete requests, their
+available details are also saved beside the raw result as `failed_requests.json`.
 
 After each benchmark, vLLM Optimizer polls vLLM's running and waiting request metrics.
 `execution.drain_grace` controls this drain window and defaults to 15 seconds.

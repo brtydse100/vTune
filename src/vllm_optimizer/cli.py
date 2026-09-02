@@ -15,6 +15,7 @@ from vllm_optimizer.cli_options import CLIUsageError, validate_cli_options
 from vllm_optimizer.lifecycle import load_retry_plan
 from vllm_optimizer.orchestrator import Orchestrator
 from vllm_optimizer.reporting.offline import regenerate_report
+from vllm_optimizer.reporting.reclassify import reclassify_run
 from vllm_optimizer.reproduction.display import reproduce_trial
 from vllm_optimizer.reproduction.export import export_vllm_command
 from vllm_optimizer.terminal import with_debug_logging
@@ -31,10 +32,11 @@ def build_parser(prog: str = "vllm-opt") -> argparse.ArgumentParser:
   {prog} retry --run RUN --trial ID [--trial ID]  Retry selected trial(s)
   {prog} reproduce --run RUN --trial ID           Print a saved trial command
   {prog} export --run RUN --trial ID              Export a vLLM serve command
-  {prog} report --run RUN [--output DIRECTORY]    Regenerate an HTML report""",
+  {prog} report --run RUN [--output DIRECTORY]    Regenerate an HTML report
+  {prog} reclassify --run RUN --max-failure-percentage N  Rescore stored data""",
     )
     parser.add_argument(
-        "action", nargs="?", choices=("validate", "export", "reproduce", "retry", "report"),
+        "action", nargs="?", choices=("validate", "export", "reproduce", "retry", "report", "reclassify"),
         help="Post-run action; omit to start a new experiment.")
     parser.add_argument("--config", "-c", metavar="YAML",
                         help="Experiment YAML for a new run or validation.")
@@ -44,6 +46,10 @@ def build_parser(prog: str = "vllm-opt") -> argparse.ArgumentParser:
                         help="Trial ID; repeat the option when retrying several trials.")
     parser.add_argument("--output", type=Path, metavar="DIRECTORY",
                         help="Destination for an offline regenerated report.")
+    parser.add_argument("--max-failure-percentage", type=float, metavar="PERCENT",
+                        help="Accepted failed-request percentage for reclassification.")
+    parser.add_argument("--accept-any-request-failures", action="store_true",
+                        help="Accept any request failure percentage during reclassification.")
     parser.add_argument("--verbose", action="store_true",
                         help="Override logging.level with DEBUG and stream child logs.")
     return parser
@@ -84,6 +90,11 @@ def _run(argv: Sequence[str] | None, prog: str) -> int:
             print(f"Offline report regenerated: {generated.directory}")
             for warning in generated.warnings:
                 print(f"Integrity warning: {warning}", file=sys.stderr)
+            return 0
+        elif args.action == "reclassify":
+            maximum = 100.0 if args.accept_any_request_failures else args.max_failure_percentage
+            generated = reclassify_run(args.run, maximum, args.output)
+            print(f"Stored benchmarks reclassified: {generated.directory}")
             return 0
         else:
             config = load_config(args.config)

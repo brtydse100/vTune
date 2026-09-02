@@ -42,8 +42,20 @@ def reported_request_total(result: object) -> int | None:
     return totals.pop() if len(totals) == 1 else None
 
 
+def observed_requests(result: object) -> int:
+    total = 0
+    for workload in getattr(result, "workloads", ()):
+        metrics = getattr(workload, "metrics", {})
+        totals = metrics.get("request_totals") if isinstance(metrics, Mapping) else None
+        if isinstance(totals, Mapping):
+            total += sum(value for name in ("successful", "errored", "incomplete")
+                         if _valid_count(value := totals.get(name)))
+    return total
+
+
 def request_count_failure(
     result: object, expected: int | None, backend: str = "GuideLLM",
+    max_failure_percentage: float = 0,
 ) -> Failure | None:
     if expected is None or expected <= 0:
         return Failure(
@@ -57,13 +69,18 @@ def request_count_failure(
             f"{backend} result contains no workload metrics; it cannot be scored safely",
         )
     for workload in workloads:
-        failure = _workload_failure(getattr(workload, "metrics", {}), expected, backend)
+        failure = _workload_failure(
+            getattr(workload, "metrics", {}), expected, backend,
+            max_failure_percentage,
+        )
         if failure is not None:
             return failure
     return None
 
 
-def _workload_failure(metrics: object, expected: int, backend: str) -> Failure | None:
+def _workload_failure(
+    metrics: object, expected: int, backend: str, max_failure_percentage: float,
+) -> Failure | None:
     totals = metrics.get("request_totals") if isinstance(metrics, Mapping) else None
     request_total = metrics.get("request_total") if isinstance(metrics, Mapping) else None
     if (not isinstance(totals, Mapping) or not _valid_count(request_total)):
@@ -81,13 +98,15 @@ def _workload_failure(metrics: object, expected: int, backend: str) -> Failure |
             f"{backend} result has invalid normalized request totals",
         )
     observed = successful + errored + incomplete
-    if (request_total != expected or observed != expected or errored or incomplete
-            or successful != expected):
+    failure_percentage = 100 * (errored + incomplete) / observed if observed else 100
+    if (request_total != expected or observed != expected or not successful
+            or failure_percentage > max_failure_percentage):
         return Failure(
             "benchmark_requests_incomplete",
-            f"{backend} benchmark expected {expected} successful requests; observed "
+            f"{backend} benchmark expected {expected} requests with at most "
+            f"{max_failure_percentage:g}% failures; observed "
             f"{successful} successful, {errored} errored, {incomplete} incomplete, "
-            f"total {request_total}",
+            f"total {request_total} ({failure_percentage:.2f}% failures)",
         )
     return None
 

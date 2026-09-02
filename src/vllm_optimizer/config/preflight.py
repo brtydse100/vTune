@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from vllm_optimizer.benchmarks.configuration import (
-    configured_engine, configured_min_repeats, configured_repeats,
+    configured_engine, configured_failure_percentage, configured_min_repeats, configured_repeats,
     configured_runs, configured_warmup_repeats,
 )
 from vllm_optimizer.benchmarks.guidellm import build_plan as build_guidellm_plan
@@ -55,6 +55,7 @@ def _validate(config: VTuneConfig) -> None:
     runs = configured_runs(config)
     configured_repeats(config)
     configured_min_repeats(config)
+    configured_failure_percentage(config)
     configured_warmup_repeats(config)
     maximize_metric(config)
     validate_search(config)

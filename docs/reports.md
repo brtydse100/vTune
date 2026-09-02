@@ -70,6 +70,18 @@ vllm-opt report --run runs/NAME/RUN_ID
 The report uses reproduction manifests from the source run while writing all
 new output to a separate directory. Required structured data (the run and
 trial results and manifests) is validated and stops regeneration when invalid.
+
+To apply a different request-failure policy without starting vLLM or GuideLLM:
+
+```bash
+vllm-opt reclassify --run runs/RUN --max-failure-percentage 5
+vllm-opt reclassify --run runs/RUN --accept-any-request-failures
+```
+
+This reads the stored benchmark measurements, evaluates request failures only
+after each stored repeat is complete, recalculates eligibility and rankings, and
+writes a new `result.json`, `results.csv`, and `report.html` below the source
+run's `reclassified` directory (or `--output`). The source run is not modified.
 Missing or changed optional logs and raw artifacts generate visible integrity
 warnings. a5/a6 reports may have no execution assignment; a7 recomputes their
 derived summaries from normalized trial data without changing the source run.

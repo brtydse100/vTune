@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from html import escape
 
 from vllm_optimizer.domain.trial_report import TrialReport
+from vllm_optimizer.benchmarks.quality import request_quality
 from vllm_optimizer.reporting.analysis import DEFAULT_METRICS, workload_metric_summary
 
 
@@ -36,14 +37,19 @@ def benchmark_details_table(report: TrialReport | None) -> str:
                 f"<td>{_number(workload_metric_summary(metrics, aliases).get(stat))}</td>"
                 for _, aliases, stat in _COLUMNS
             )
+            quality = request_quality(metrics)
             rows.append(
                 f"<tr><td>{escape(str(benchmark.get('name', 'unknown')))}</td>"
                 f"<td>{escape(str(benchmark.get('backend', 'unknown')))}</td>"
                 f"<td>{escape(str(benchmark.get('repeat') or '—'))}</td>"
                 f"<td>{escape(str(workload.get('index', '—')))}</td>"
-                f"<td>{_seconds(benchmark.get('elapsed_seconds'))}</td>{cells}</tr>"
+                f"<td>{_seconds(benchmark.get('elapsed_seconds'))}</td>"
+                f"<td>{workload.get('successful_requests', quality['successful_requests'])}</td>"
+                f"<td>{workload.get('failed_requests', quality['failed_requests'])}</td>"
+                f"<td>{_percent(workload.get('failure_percentage', quality['failure_percentage']))}</td>{cells}</tr>"
             )
-    headers = ("Benchmark", "Backend", "Repeat", "Workload", "Elapsed", *(
+    headers = ("Benchmark", "Backend", "Repeat", "Workload", "Elapsed",
+               "Successful", "Failed", "Failure %", *(
         label for label, _, _ in _COLUMNS
     ))
     heading = "".join(f"<th>{escape(value)}</th>" for value in headers)
@@ -57,3 +63,7 @@ def _number(value: object) -> str:
 
 def _seconds(value: object) -> str:
     return f"{value:.2f}s" if isinstance(value, int | float) and not isinstance(value, bool) else "—"
+
+
+def _percent(value: object) -> str:
+    return f"{value:.2f}%" if isinstance(value, int | float) and not isinstance(value, bool) else "—"

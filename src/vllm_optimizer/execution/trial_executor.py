@@ -52,8 +52,14 @@ class TrialExecutor:
             self._terminal.stage(event, name, scope)
             if event == "completed" and "_benchmark:" in name and "warmup" not in name:
                 self._benchmark_progress(name, context)
+        def benchmark_progress(
+            name: str, current: int | None, elapsed: float, limit: float,
+        ) -> None:
+            self._terminal.benchmark_progress(name, current, elapsed, limit, scope)
         outcome = await TrialManager(
-            build_trial_workers(self._config, parameters, trial_dir, slot),
+            build_trial_workers(
+                self._config, parameters, trial_dir, slot, benchmark_progress,
+            ),
             max_attempts(self._config), progress,
         ).execute(context)
         manifest_path = trial_dir / "manifest.json"
@@ -92,6 +98,10 @@ class TrialExecutor:
         if not isinstance(values, tuple) or not values or not isinstance(values[-1], BenchmarkResult):
             return
         result = values[-1]
-        score = self._scoring.score_each((result,)).get(result.run_name)
+        same_run = tuple(item for item in values
+                         if isinstance(item, BenchmarkResult)
+                         and item.run_name == result.run_name)
+        score = self._scoring.score_each(same_run).get(result.run_name)
+        quality = self._scoring.quality((result,))
         repeat = int(worker.rsplit("repeat-", 1)[1]) if "repeat-" in worker else None
-        self._terminal.benchmark_score(result.run_name, repeat, score)
+        self._terminal.benchmark_score(result.run_name, repeat, score, quality.successful)

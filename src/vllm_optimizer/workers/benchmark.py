@@ -9,6 +9,8 @@ from pathlib import Path
 from time import monotonic
 
 from vllm_optimizer.benchmarks.guidellm import build_plan, parse_result
+from vllm_optimizer.benchmarks.configuration import configured_failure_percentage
+from vllm_optimizer.benchmarks.failures import save_failed_requests
 from vllm_optimizer.config.models import VTuneConfig
 from vllm_optimizer.config.runtime import logging_level
 from vllm_optimizer.domain.results import Failure, WorkerResult
@@ -17,10 +19,12 @@ from vllm_optimizer.workers.base import TrialContext
 from vllm_optimizer.workers.attempts import attempt_directory
 from vllm_optimizer.workers.completion import (
     completed_requests as _completed_requests, max_requests as _max_requests,
+    observed_requests as _observed_requests,
     request_count_failure as _request_count_failure,
 )
 from vllm_optimizer.workers.failure_details import classified_failure
 from vllm_optimizer.workers.process import ManagedProcess, ProcessRunner, ProcessSpec
+from vllm_optimizer.workers.progress import BenchmarkProgress, ProgressCallback
 
 
 class GuideLLMBenchmarkWorker:
@@ -28,6 +32,7 @@ class GuideLLMBenchmarkWorker:
         self, config: VTuneConfig, run: Mapping[str, object], runner: ProcessRunner,
         artifacts: Path, timeout: float = 180, shutdown_grace: float = 5,
         repeat_index: int | None = None, warmup_index: int | None = None,
+        progress: ProgressCallback | None = None,
     ) -> None:
         if timeout <= 0 or shutdown_grace < 0:
             raise ValueError("benchmark timeout must be positive and grace non-negative")
@@ -39,6 +44,7 @@ class GuideLLMBenchmarkWorker:
         self._run_name = str(run.get("name", "invalid"))
         self._repeat_index = repeat_index
         self._warmup_index = warmup_index
+        self._progress = progress
 
     @property
     def name(self) -> str:
@@ -68,6 +74,8 @@ class GuideLLMBenchmarkWorker:
                 self._environment(), plan.run_name, self._repeat_index,
             ))
             started = monotonic()
+            progress = BenchmarkProgress("guidellm", self._run, self.name, self._progress)
+            await progress.prepare(endpoint)
             process = await self._runner.start(
                 ProcessSpec(plan.argv, env=self._environment()), plan.log_path
             )
@@ -80,6 +88,7 @@ class GuideLLMBenchmarkWorker:
         except Exception as error:
             return self._failed("benchmark_launch_failed", str(error))
         context.values[self._ownership_key] = process
+        progress.start(process)
         suffix = (f"_warmup_{self._warmup_index}" if self._warmup_index
                   else f"_repeat_{self._repeat_index}" if self._repeat_index else "")
         prefix = f"benchmark_{plan.run_name}{suffix}"
@@ -94,6 +103,8 @@ class GuideLLMBenchmarkWorker:
                                    f"{self._timeout:g}s and was stopped; full log: "
                                    f"{plan.log_path}", True)
             )
+        finally:
+            await progress.stop()
         if returncode:
             return WorkerResult.failed(classified_failure(
                 plan.log_path, "benchmark_failed", f"GuideLLM exited with code {returncode}"
@@ -108,12 +119,22 @@ class GuideLLMBenchmarkWorker:
             return WorkerResult.failed(classified_failure(
                 plan.log_path, "benchmark_result_invalid", str(error)
             ))
+        progress.complete(process, _observed_requests(result))
+        failed_path = plan.directory / "failed_requests.json"
+        if save_failed_requests(plan.json_path, "guidellm", failed_path):
+            context.artifacts[f"{prefix}_failed_requests"] = str(failed_path)
+        context.artifacts[f"{prefix}_json"] = str(plan.json_path)
         has_request_limit, expected_requests = _max_requests(self._run)
         if has_request_limit:
-            failure = _request_count_failure(result, expected_requests)
+            failure = _request_count_failure(
+                result, expected_requests, max_failure_percentage=
+                configured_failure_percentage(self._config),
+            )
             if failure is not None:
+                self._remember_observed(context, result)
                 return WorkerResult.failed(failure)
         elif not _completed_requests(result):
+            self._remember_observed(context, result)
             return WorkerResult.failed(Failure(
                 "benchmark_no_completed_requests",
                 f"GuideLLM exited without completed requests for '{plan.run_name}'; "
@@ -122,8 +143,12 @@ class GuideLLMBenchmarkWorker:
         previous = context.values.get("benchmark_results", ())
         if self._warmup_index is None:
             context.values["benchmark_results"] = (*previous, result)
-        context.artifacts[f"{prefix}_json"] = str(plan.json_path)
         return WorkerResult.completed()
+
+    def _remember_observed(self, context: TrialContext, result: object) -> None:
+        if self._warmup_index is None:
+            previous = context.values.get("observed_benchmark_results", ())
+            context.values["observed_benchmark_results"] = (*previous, result)
 
     async def cleanup(self, context: TrialContext) -> None:
         process = context.values.pop(self._ownership_key, None)
@@ -132,6 +157,7 @@ class GuideLLMBenchmarkWorker:
 
     def _environment(self) -> dict[str, str]:
         environment = {key: str(value) for key, value in self._config.env.items()}
+        environment["PYTHONUNBUFFERED"] = "1"
         environment["GUIDELLM__LOGGING__CONSOLE_LOG_LEVEL"] = logging_level(self._config)
         return environment
 

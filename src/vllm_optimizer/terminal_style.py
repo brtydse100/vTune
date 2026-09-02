@@ -13,6 +13,7 @@ _CODES = {
     "red": "31",
     "yellow": "33",
     "dim": "2",
+    "highlight": "1;96",
 }
 
 

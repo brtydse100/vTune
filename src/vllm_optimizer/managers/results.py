@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from vllm_optimizer.domain.benchmark import BenchmarkResult
+from vllm_optimizer.benchmarks.quality import aggregate_quality, request_quality
 from vllm_optimizer.domain.results import WorkerResult
 from vllm_optimizer.domain.trial_report import TrialReport
 from vllm_optimizer.workers.base import TrialContext
@@ -46,7 +47,8 @@ class ResultsManager:
 
     @staticmethod
     def _benchmark_results(context: TrialContext) -> tuple[BenchmarkResult, ...]:
-        values = context.values.get("benchmark_results", ())
+        values = context.values.get("benchmark_results",
+                                    context.values.get("observed_benchmark_results", ()))
         if not isinstance(values, tuple) or any(
             not isinstance(value, BenchmarkResult) for value in values
         ):
@@ -55,14 +57,16 @@ class ResultsManager:
 
     @staticmethod
     def _benchmark_document(result: BenchmarkResult) -> dict[str, object]:
+        workloads = [
+            {"index": item.index, "configuration": item.configuration,
+             "metrics": item.metrics, **request_quality(item.metrics)}
+            for item in result.workloads
+        ]
         return {
             "name": result.run_name, "backend": result.backend,
             "backend_version": result.backend_version,
             "raw_artifact": str(result.raw_artifact),
             "repeat": result.repeat_index,
             "elapsed_seconds": result.elapsed_seconds,
-            "workloads": [
-                {"index": item.index, "configuration": item.configuration,
-                 "metrics": item.metrics} for item in result.workloads
-            ],
+            **aggregate_quality(workloads), "workloads": workloads,
         }

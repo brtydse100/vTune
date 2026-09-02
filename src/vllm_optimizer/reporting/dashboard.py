@@ -75,7 +75,7 @@ Request quality: {escape(quality)}.</p>{changes_table(best, baseline)}
     <p class='note'>Metrics are averaged across the selected trial's benchmark workloads. Values are shown only when the benchmark backend supplied them.</p>
     {metrics_table(best_report)}</section>
     <section><h2>Per-benchmark measurements</h2>
-    <p class='note'>Each row is one workload from one benchmark execution. Elapsed time is measured independently by vLLM Optimizer.</p>
+    <p class='note'>Each row is one workload from one benchmark repeat, including its successful and failed request counts.</p>
     {benchmark_details_table(best_report)}</section>
     {metric_methodology()}
 {measurement_section(trials, metric, context.minimum_repeats, context.drift_threshold)}

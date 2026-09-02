@@ -11,6 +11,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import IO, Mapping
 
+from vllm_optimizer.workers.output_stream import mirror_output
+
 
 @dataclass(frozen=True, slots=True)
 class ProcessSpec:
@@ -47,6 +49,7 @@ class ManagedProcess:
     ) -> None:
         self._process = process
         self._log = log
+        self._log_path = Path(str(log.name)) if isinstance(log.name, str) else None
         self._mirror = mirror
 
     @property
@@ -56,6 +59,16 @@ class ManagedProcess:
     @property
     def returncode(self) -> int | None:
         return self._process.returncode
+
+    def write_log(self, message: str) -> None:
+        """Append a progress message and make it visible to log followers."""
+        if self._log.closed and self._log_path is not None:
+            with self._log_path.open("a", encoding="utf-8") as stream:
+                stream.write(message)
+                stream.flush()
+        elif not self._log.closed:
+            self._log.write(message)
+            self._log.flush()
 
     async def wait(self) -> int:
         returncode = await self._process.wait()
@@ -102,9 +115,12 @@ class ManagedProcess:
 class ProcessRunner:
     """Starts subprocesses without a shell in a dedicated process group."""
 
-    def __init__(self, stream: bool = False, label: str = "process") -> None:
+    def __init__(
+        self, stream: bool = False, label: str = "process", *, capture: bool = False,
+    ) -> None:
         self._stream = stream
         self._label = label
+        self._capture = capture or stream
 
     async def start(self, spec: ProcessSpec, log_path: Path) -> ManagedProcess:
         log_path = Path(log_path)
@@ -122,7 +138,7 @@ class ProcessRunner:
                 *spec.argv,
                 cwd=spec.cwd,
                 env=environment,
-                stdout=asyncio.subprocess.PIPE if self._stream else log,
+                stdout=asyncio.subprocess.PIPE if self._capture else log,
                 stderr=asyncio.subprocess.STDOUT,
                 limit=1024 * 1024,
                 **ownership,
@@ -131,17 +147,9 @@ class ProcessRunner:
             log.close()
             raise
         mirror = None
-        if self._stream:
+        if self._capture:
             assert process.stdout is not None
-            mirror = asyncio.create_task(_mirror_output(process.stdout, log, self._label))
+            mirror = asyncio.create_task(mirror_output(
+                process.stdout, log, self._label, self._stream,
+            ))
         return ManagedProcess(process, log, mirror)
-
-
-async def _mirror_output(
-    stream: asyncio.StreamReader, log: IO[str], label: str,
-) -> None:
-    while line := await stream.readline():
-        text = line.decode("utf-8", errors="replace")
-        log.write(text)
-        log.flush()
-        print(f"[{label}] {text}", end="", flush=True)
