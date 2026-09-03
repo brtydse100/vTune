@@ -137,16 +137,41 @@ exposes normalized metrics to scoring and reports.
 Set `benchmark.warmup_repeats` to discard initial measurements and
 `benchmark.min_repeats` to require enough measured repeats for ranking. The
 default minimum is 1 for backward compatibility; use 2 or more for confidence
-intervals. Set `benchmark.max_failure_percentage` from `0` through `100` to
-choose the largest acceptable percentage of errored or incomplete requests. It
-defaults to strict `0`; the configured boundary is accepted. Set
-`accept_any_request_failures: true` to ignore the failure percentage while
-still requiring at least one successful request and a usable metric. Normalized
-JSON, CSV, and HTML results show successful and failed counts for every repeat.
-Every configured run must meet the minimum and failure policy or the trial is
-not ranked. Set
+intervals. Every configured run must meet the minimum and failure policy or the
+trial is not ranked. Set
 `analysis.drift_threshold` to change the sequential finalist rerun threshold
 (default 0.05).
+
+### Request failure policy
+
+The default is strict: any errored or incomplete request excludes the
+benchmark from ranking.
+
+```yaml
+benchmark:
+  max_failure_percentage: 0
+```
+
+Set `max_failure_percentage` from `0` through `100` to accept a benchmark with
+up to that percentage of errored or incomplete requests. The boundary is
+inclusive, so this example accepts exactly 2% failures:
+
+```yaml
+benchmark:
+  max_failure_percentage: 2
+```
+
+To ignore the percentage entirely, use:
+
+```yaml
+benchmark:
+  accept_any_request_failures: true
+```
+
+The failure policy is evaluated only after the benchmark finishes. Every
+accepted benchmark must still contain at least one successful request and a
+usable metric. Normalized JSON, CSV, and HTML results show successful and
+failed request counts and the failure percentage for every repeat.
 
 Every supported profile, constraint, request format, and dataset form has a
 copyable examples in [benchmark configuration](benchmarking.md). See the

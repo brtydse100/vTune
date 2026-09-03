@@ -11,9 +11,12 @@ The `vllm-opt` CLI takes the median score across repeats. It records successful,
 errored, and incomplete request counts. `max_failure_percentage` accepts a
 number from `0` through `100` and defaults to `0`. A workload at or below that
 percentage is eligible when at least one request succeeded; a workload above it
-is excluded. Request-count runs also require the expected total to be present.
-A trial with no eligible workload is not ranked. Remaining trials are ordered
-by lowest error percentage, lowest error count, then highest configured metric.
+is excluded. The decision is made after each benchmark finishes, using its
+final request counts. Set `accept_any_request_failures: true` to ignore the
+percentage while still requiring at least one successful request and a usable
+metric. Request-count runs also require the expected total to be present. A
+trial with no eligible workload is not ranked. Remaining trials are ordered by
+lowest error percentage, lowest error count, then highest configured metric.
 
 When failures occur, each benchmark artifact directory contains
 `failed_requests.json` with the errored and incomplete details exposed by the
