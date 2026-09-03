@@ -14,6 +14,9 @@ from typing import IO
 
 from vllm_optimizer.workers.output_stream import mirror_output
 
+_CTRL_BREAK_EVENT = getattr(signal, "CTRL_BREAK_EVENT", 0)
+_CREATE_NEW_PROCESS_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+
 
 @dataclass(frozen=True, slots=True)
 class ProcessSpec:
@@ -97,7 +100,7 @@ class ManagedProcess:
             elif force:
                 self._process.kill()
             else:
-                self._process.send_signal(signal.CTRL_BREAK_EVENT)
+                self._process.send_signal(_CTRL_BREAK_EVENT)
         except (ProcessLookupError, PermissionError):
             return
         except (OSError, ValueError):
@@ -123,11 +126,7 @@ class ProcessRunner:
         log = log_path.open("w", encoding="utf-8")
         environment = os.environ.copy()
         environment.update(spec.env)
-        ownership = (
-            {"start_new_session": True}
-            if os.name == "posix"
-            else {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
-        )
+        ownership = {"start_new_session": True} if os.name == "posix" else {"creationflags": _CREATE_NEW_PROCESS_GROUP}
         try:
             process = await asyncio.create_subprocess_exec(
                 *spec.argv,
