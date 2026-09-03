@@ -1,8 +1,9 @@
 """Validated runtime policy values derived from an experiment configuration."""
 
-from vllm_optimizer.config.models import VTuneConfig
-from vllm_optimizer.benchmarks.timing import parse_duration
+from collections.abc import Mapping
 
+from vllm_optimizer.benchmarks.timing import parse_duration
+from vllm_optimizer.config.models import VTuneConfig
 
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
@@ -33,14 +34,18 @@ def maximize_metric(config: VTuneConfig) -> str:
 
 
 def positive(values: object, key: str, default: float) -> float:
-    value = values.get(key, default)  # type: ignore[union-attr]
+    if not isinstance(values, Mapping):
+        raise ValueError("runtime settings must be a mapping")
+    value = values.get(key, default)
     if isinstance(value, bool) or not isinstance(value, int | float) or value <= 0:
         raise ValueError(f"'{key}' must be a positive number")
     return float(value)
 
 
 def duration(values: object, key: str, default: float) -> float:
-    value = values.get(key, default)  # type: ignore[union-attr]
+    if not isinstance(values, Mapping):
+        raise ValueError("timeout settings must be a mapping")
+    value = values.get(key, default)
     return parse_duration(value, f"timeouts.{key}")
 
 

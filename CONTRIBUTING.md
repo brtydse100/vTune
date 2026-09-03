@@ -1,5 +1,21 @@
 # Contributing to vLLM Optimizer
 
+## Reproducible software validation
+
+Use Python 3.11 or 3.12. This command runs the complete software gate in fresh
+isolated environments: source tests, coverage, lint, types, docs, audit,
+package checks, and clean-wheel tests. A global package cannot affect it:
+
+```powershell
+.\scripts\validate-software.ps1
+```
+
+Python 3.12 is the designated deterministic coverage-gate version. CI runs
+behavioral and clean-wheel tests on both Python 3.11 and 3.12.
+
+Maintainers also run the external sibling `vTune-private-tests` suite. Hardware
+validation is a separate deferred release gate.
+
 vLLM Optimizer favors small, explicit components over framework-heavy abstractions.
 Read [the architecture](docs/ARCHITECTURE.md) before changing execution flow.
 

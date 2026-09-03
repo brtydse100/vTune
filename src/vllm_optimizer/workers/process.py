@@ -6,10 +6,11 @@ import asyncio
 import os
 import signal
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import IO, Mapping
+from typing import IO
 
 from vllm_optimizer.workers.output_stream import mirror_output
 
@@ -29,10 +30,7 @@ class ProcessSpec:
         if not all(isinstance(argument, str) for argument in argv):
             raise TypeError("argv values must be strings")
         environment = dict(self.env)
-        if not all(
-            isinstance(key, str) and isinstance(value, str)
-            for key, value in environment.items()
-        ):
+        if not all(isinstance(key, str) and isinstance(value, str) for key, value in environment.items()):
             raise TypeError("environment keys and values must be strings")
         object.__setattr__(self, "argv", argv)
         object.__setattr__(self, "env", MappingProxyType(environment))
@@ -44,8 +42,7 @@ class ManagedProcess:
     """A process whose lifetime and log file are owned by vLLM Optimizer."""
 
     def __init__(
-        self, process: asyncio.subprocess.Process, log: IO[str],
-        mirror: asyncio.Task[None] | None = None,
+        self, process: asyncio.subprocess.Process, log: IO[str], mirror: asyncio.Task[None] | None = None
     ) -> None:
         self._process = process
         self._log = log
@@ -96,7 +93,7 @@ class ManagedProcess:
             return
         try:
             if os.name == "posix":
-                os.killpg(self.pid, signal.SIGKILL if force else signal.SIGTERM)
+                os.kill(-self.pid, signal.Signals(9) if force else signal.SIGTERM)
             elif force:
                 self._process.kill()
             else:
@@ -115,9 +112,7 @@ class ManagedProcess:
 class ProcessRunner:
     """Starts subprocesses without a shell in a dedicated process group."""
 
-    def __init__(
-        self, stream: bool = False, label: str = "process", *, capture: bool = False,
-    ) -> None:
+    def __init__(self, stream: bool = False, label: str = "process", *, capture: bool = False) -> None:
         self._stream = stream
         self._label = label
         self._capture = capture or stream
@@ -149,7 +144,5 @@ class ProcessRunner:
         mirror = None
         if self._capture:
             assert process.stdout is not None
-            mirror = asyncio.create_task(mirror_output(
-                process.stdout, log, self._label, self._stream,
-            ))
+            mirror = asyncio.create_task(mirror_output(process.stdout, log, self._label, self._stream))
         return ManagedProcess(process, log, mirror)

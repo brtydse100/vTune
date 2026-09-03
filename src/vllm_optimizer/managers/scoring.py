@@ -23,8 +23,7 @@ class TrialScore:
     @property
     def error_rate(self) -> float:
         total = self.successful_requests + self.errored_requests + self.incomplete_requests
-        return ((self.errored_requests + self.incomplete_requests) / total
-                if total else 0.0)
+        return (self.errored_requests + self.incomplete_requests) / total if total else 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,20 +36,24 @@ class QualitySummary:
 
 class ScoringManager:
     def __init__(
-        self, metric: str, minimum_repeats: int = 1,
-        required_runs: tuple[str, ...] = (), max_failure_percentage: float = 0,
+        self,
+        metric: str,
+        minimum_repeats: int = 1,
+        required_runs: tuple[str, ...] = (),
+        max_failure_percentage: float = 0,
     ) -> None:
         if not metric.strip():
             raise ValueError("optimization.maximize must not be empty")
-        if (not isinstance(minimum_repeats, int) or isinstance(minimum_repeats, bool)
-                or minimum_repeats < 1):
+        if not isinstance(minimum_repeats, int) or isinstance(minimum_repeats, bool) or minimum_repeats < 1:
             raise ValueError("minimum repeats must be positive")
         self.metric = metric
         self.minimum_repeats = minimum_repeats
         self.required_runs = required_runs
-        if (isinstance(max_failure_percentage, bool)
-                or not isinstance(max_failure_percentage, int | float)
-                or not 0 <= max_failure_percentage <= 100):
+        if (
+            isinstance(max_failure_percentage, bool)
+            or not isinstance(max_failure_percentage, int | float)
+            or not 0 <= max_failure_percentage <= 100
+        ):
             raise ValueError("maximum failure percentage must be between 0 and 100")
         self.max_failure_percentage = float(max_failure_percentage)
 
@@ -64,19 +67,29 @@ class ScoringManager:
     def score_each(self, results: tuple[BenchmarkResult, ...]) -> dict[str, float]:
         grouped: dict[str, list[float]] = {}
         for result in results:
-            values = [value for workload in result.workloads
-                      if _eligible(workload.metrics, self.max_failure_percentage)
-                      if (value := _metric_value(workload.metrics.get(self.metric))) is not None]
+            values = [
+                value
+                for workload in result.workloads
+                if _eligible(workload.metrics, self.max_failure_percentage)
+                if (value := _metric_value(workload.metrics.get(self.metric))) is not None
+            ]
             if values:
                 grouped.setdefault(result.run_name, []).append(fmean(values))
-        return {name: float(median(values)) for name, values in grouped.items()
-                if len(values) >= self.minimum_repeats}
+        return {name: float(median(values)) for name, values in grouped.items() if len(values) >= self.minimum_repeats}
 
     @staticmethod
     def rank(scores: list[TrialScore]) -> tuple[TrialScore, ...]:
-        return tuple(sorted(scores, key=lambda item: (
-            item.error_rate, item.errored_requests + item.incomplete_requests, -item.value,
-        )))
+        return tuple(
+            sorted(
+                scores,
+                key=lambda item: (
+                    -item.value,
+                    item.error_rate,
+                    item.errored_requests + item.incomplete_requests,
+                    item.trial_id,
+                ),
+            )
+        )
 
     def quality(self, results: tuple[BenchmarkResult, ...]) -> QualitySummary:
         successful = errored = incomplete = excluded = 0
@@ -116,9 +129,7 @@ def _request_counts(metrics: Mapping[str, object]) -> tuple[int, int, int]:
     totals = metrics.get("request_totals")
     if not isinstance(totals, Mapping):
         return 0, 0, 0
-    return tuple(_count(totals.get(name)) for name in (
-        "successful", "errored", "incomplete",
-    ))  # type: ignore[return-value]
+    return tuple(_count(totals.get(name)) for name in ("successful", "errored", "incomplete"))  # type: ignore[return-value]
 
 
 def _count(value: object) -> int:
@@ -128,5 +139,4 @@ def _count(value: object) -> int:
 def _eligible(metrics: Mapping[str, object], max_failure_percentage: float = 0) -> bool:
     successful, errored, incomplete = _request_counts(metrics)
     total = successful + errored + incomplete
-    return (successful > 0 and total > 0
-            and 100 * (errored + incomplete) / total <= max_failure_percentage)
+    return successful > 0 and total > 0 and 100 * (errored + incomplete) / total <= max_failure_percentage

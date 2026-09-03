@@ -1,8 +1,8 @@
 """Small, dependency-free domain entities for experiment execution."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Mapping
 
 from .states import AttemptStatus, RunStatus, TrialStatus
 

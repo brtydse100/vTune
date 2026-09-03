@@ -5,10 +5,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from html import escape
 
-from vllm_optimizer.domain.trial_report import TrialReport
 from vllm_optimizer.benchmarks.quality import request_quality
+from vllm_optimizer.domain.trial_report import TrialReport
 from vllm_optimizer.reporting.analysis import DEFAULT_METRICS, workload_metric_summary
-
 
 _COLUMNS = (
     ("Output tok/s", DEFAULT_METRICS["throughput_tokens_per_second"], "average"),
@@ -48,10 +47,17 @@ def benchmark_details_table(report: TrialReport | None) -> str:
                 f"<td>{workload.get('failed_requests', quality['failed_requests'])}</td>"
                 f"<td>{_percent(workload.get('failure_percentage', quality['failure_percentage']))}</td>{cells}</tr>"
             )
-    headers = ("Benchmark", "Backend", "Repeat", "Workload", "Elapsed",
-               "Successful", "Failed", "Failure %", *(
-        label for label, _, _ in _COLUMNS
-    ))
+    headers = (
+        "Benchmark",
+        "Backend",
+        "Repeat",
+        "Workload",
+        "Elapsed",
+        "Successful",
+        "Failed",
+        "Failure %",
+        *(label for label, _, _ in _COLUMNS),
+    )
     heading = "".join(f"<th>{escape(value)}</th>" for value in headers)
     body = "".join(rows) or f"<tr><td colspan='{len(headers)}'>No data available.</td></tr>"
     return f"<div class='table'><table><thead><tr>{heading}</tr></thead><tbody>{body}</tbody></table></div>"

@@ -4,6 +4,20 @@
 
 _No changes yet._
 
+## v0.1.0a13 — Software trust gates; hardware validation pending
+
+_September 3, 2026_
+
+- Make the configured maximize metric the primary objective after the request
+  failure eligibility gate.
+- Default to one warmup and three required measured repeats, use Student's t
+  intervals, and label insufficient evidence explicitly.
+- Recursively redact conventional credentials from display and artifacts.
+- Atomically finalize coordinator failures and preserve completed trial data.
+- Add repository-owned lint, type, coverage, package, audit, SBOM, and release
+  gates for Python 3.11 and 3.12.
+- Hardware and real-backend validation remain pending and are not claimed.
+
 ## v0.1.0a12 — Live benchmark observability and failure policy
 
 _September 2, 2026_

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 
 
 def save_failed_requests(source: Path, backend: str, destination: Path) -> bool:
@@ -13,8 +13,7 @@ def save_failed_requests(source: Path, backend: str, destination: Path) -> bool:
         document = json.loads(Path(source).read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
         return False
-    failures = (_guidellm_failures(document) if backend == "guidellm"
-                else _vllm_failures(document))
+    failures = _guidellm_failures(document) if backend == "guidellm" else _vllm_failures(document)
     if not failures:
         return False
     output = {
@@ -43,8 +42,7 @@ def _guidellm_failures(document: object) -> list[dict[str, object]]:
         for status in ("errored", "incomplete"):
             entries = requests.get(status, [])
             if isinstance(entries, list):
-                failures.extend({"workload": workload, "status": status, "request": entry}
-                                for entry in entries)
+                failures.extend({"workload": workload, "status": status, "request": entry} for entry in entries)
     return failures
 
 

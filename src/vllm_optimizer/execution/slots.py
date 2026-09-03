@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
-from typing import Mapping
+from collections.abc import Mapping
+from dataclasses import dataclass
 
 from vllm_optimizer.config.models import VTuneConfig
 
@@ -19,10 +19,9 @@ class WorkerSlot:
 
     def supports(self, server_args: Mapping[str, object], fixed: Mapping[str, object]) -> bool:
         value = server_args.get(
-            "tensor-parallel-size", server_args.get(
-                "tensor_parallel_size", fixed.get(
-                    "tensor-parallel-size", fixed.get("tensor_parallel_size", 1),
-                ),
+            "tensor-parallel-size",
+            server_args.get(
+                "tensor_parallel_size", fixed.get("tensor-parallel-size", fixed.get("tensor_parallel_size", 1))
             ),
         )
         return isinstance(value, int) and not isinstance(value, bool) and value <= len(self.devices)
@@ -39,10 +38,8 @@ def worker_slots(config: VTuneConfig) -> tuple[WorkerSlot, ...]:
     if execution_mode(config) == "sequential":
         return ()
     _reject_conflicting_gpu_configuration(config)
-    maximum = _positive_int(config.execution.get("max_parallel_trials"),
-                            "execution.max_parallel_trials")
-    allocation = _mapping(config.execution.get("gpu_allocation"),
-                          "execution.gpu_allocation")
+    maximum = _positive_int(config.execution.get("max_parallel_trials"), "execution.max_parallel_trials")
+    allocation = _mapping(config.execution.get("gpu_allocation"), "execution.gpu_allocation")
     unknown = set(allocation) - {"strategy", "allow_sharing", "workers"}
     if unknown:
         raise ValueError(f"unknown gpu_allocation setting(s): {', '.join(sorted(unknown))}")
@@ -70,9 +67,12 @@ def _slot(value: object, port: int) -> WorkerSlot:
     name, devices = raw["name"], raw["devices"]
     if not isinstance(name, str) or not _NAME.fullmatch(name):
         raise ValueError("GPU worker names must use letters, numbers, '_' or '-'")
-    if (not isinstance(devices, list) or not devices or
-            any(isinstance(item, bool) or not isinstance(item, int) or item < 0
-                for item in devices) or len(set(devices)) != len(devices)):
+    if (
+        not isinstance(devices, list)
+        or not devices
+        or any(isinstance(item, bool) or not isinstance(item, int) or item < 0 for item in devices)
+        or len(set(devices)) != len(devices)
+    ):
         raise ValueError("GPU worker devices must be unique non-negative integers")
     return WorkerSlot(name, tuple(devices), port)
 

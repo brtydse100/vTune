@@ -1,7 +1,7 @@
 """Load and validate vLLM Optimizer YAML configuration files."""
 
-from pathlib import Path
 import re
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -10,25 +10,8 @@ from .errors import ConfigFileError, ConfigValidationError, ConfigYAMLError
 from .models import ExperimentConfig, VTuneConfig
 from .runtime import logging_level
 
-
-_OPTIONAL_SECTIONS = (
-    "benchmark",
-    "baseline",
-    "optimization",
-    "analysis",
-    "timeouts",
-    "logging",
-    "execution",
-)
-_TOP_LEVEL_KEYS = {
-    "schema_version",
-    "experiment",
-    "server",
-    "tune",
-    "env",
-    "tune_env",
-    *_OPTIONAL_SECTIONS,
-}
+_OPTIONAL_SECTIONS = ("benchmark", "baseline", "optimization", "analysis", "timeouts", "logging", "execution")
+_TOP_LEVEL_KEYS = {"schema_version", "experiment", "server", "tune", "env", "tune_env", *_OPTIONAL_SECTIONS}
 _EXPERIMENT_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
 
@@ -57,9 +40,7 @@ def _build_config(raw: Any, config_directory: Path) -> VTuneConfig:
     root = _mapping(raw, "configuration")
     unknown = sorted(set(root) - _TOP_LEVEL_KEYS)
     if unknown:
-        raise ConfigValidationError(
-            f"Unknown top-level configuration key(s): {', '.join(unknown)}"
-        )
+        raise ConfigValidationError(f"Unknown top-level configuration key(s): {', '.join(unknown)}")
 
     schema_version = root.get("schema_version", 1)
     if schema_version != 1 or isinstance(schema_version, bool):
@@ -72,21 +53,13 @@ def _build_config(raw: Any, config_directory: Path) -> VTuneConfig:
     tune_env = dict(_mapping(root.get("tune_env", {}), "'tune_env'"))
     if "model" in tune:
         raise ConfigValidationError("'server.model' cannot be tuned")
-    optional = {
-        name: dict(_mapping(root.get(name, {}), f"'{name}'"))
-        for name in _OPTIONAL_SECTIONS
-    }
+    optional = {name: dict(_mapping(root.get(name, {}), f"'{name}'")) for name in _OPTIONAL_SECTIONS}
     config = VTuneConfig(
-        schema_version=1,
-        experiment=experiment,
-        server=server,
-        tune=tune,
-        env=env,
-        tune_env=tune_env,
-        **optional,
+        schema_version=1, experiment=experiment, server=server, tune=tune, env=env, tune_env=tune_env, **optional
     )
     logging_level(config)
     from .preflight import validate_config
+
     validate_config(config)
     return config
 
@@ -98,13 +71,9 @@ def _build_experiment(raw: dict[str, Any]) -> ExperimentConfig:
         raise ConfigValidationError("'experiment.seed' must be an integer")
     name = _nonempty_string(raw.get("name"), "experiment.name")
     if not _EXPERIMENT_NAME.fullmatch(name):
-        raise ConfigValidationError(
-            "'experiment.name' must use only letters, numbers, '_' or '-'"
-        )
+        raise ConfigValidationError("'experiment.name' must use only letters, numbers, '_' or '-'")
     return ExperimentConfig(
-        name=name,
-        output_dir=_nonempty_string(raw.get("output_dir", "runs"), "experiment.output_dir"),
-        seed=seed,
+        name=name, output_dir=_nonempty_string(raw.get("output_dir", "runs"), "experiment.output_dir"), seed=seed
     )
 
 
@@ -140,6 +109,4 @@ def _nonempty_string(value: Any, label: str) -> str:
 def _reject_unknown(raw: dict[str, Any], allowed: set[str], section: str) -> None:
     unknown = sorted(set(raw) - allowed)
     if unknown:
-        raise ConfigValidationError(
-            f"Unknown key(s) in '{section}': {', '.join(unknown)}"
-        )
+        raise ConfigValidationError(f"Unknown key(s) in '{section}': {', '.join(unknown)}")

@@ -31,10 +31,15 @@ class VLLMDrainWorker:
     name = "server_drain"
 
     def __init__(
-        self, artifacts: Path, run_name: str, grace: float = 15.0,
-        poll_interval: float = 0.25, request_timeout: float = 1.0,
+        self,
+        artifacts: Path,
+        run_name: str,
+        grace: float = 15.0,
+        poll_interval: float = 0.25,
+        request_timeout: float = 1.0,
         metrics_probe: MetricsProbe = http_metrics_probe,
-        repeat_index: int | None = None, warmup_index: int | None = None,
+        repeat_index: int | None = None,
+        warmup_index: int | None = None,
     ) -> None:
         if grace < 0 or poll_interval <= 0 or request_timeout <= 0:
             raise ValueError("drain grace must be non-negative; poll and request timeouts positive")
@@ -52,9 +57,7 @@ class VLLMDrainWorker:
             return WorkerResult.failed(Failure("drain_endpoint_missing", "Missing server endpoint"))
         evidence_path = self._evidence_path(context)
         metrics_url = f"{endpoint.rstrip('/')}/metrics"
-        evidence: dict[str, object] = {
-            "metrics_url": metrics_url, "metrics": list(_METRICS), "samples": [],
-        }
+        evidence: dict[str, object] = {"metrics_url": metrics_url, "metrics": list(_METRICS), "samples": []}
         context.artifacts[self._artifact_key()] = str(evidence_path)
         deadline = monotonic() + self._grace
         while True:
@@ -65,14 +68,13 @@ class VLLMDrainWorker:
             except Exception as error:
                 evidence.update({"status": "unavailable", "error": str(error)})
                 self._save(evidence_path, evidence)
-                return WorkerResult.failed(Failure(
-                    "drain_metrics_unavailable",
-                    f"Could not read vLLM drain metrics: {error}; evidence: {evidence_path}",
-                ))
-            sample = {
-                "elapsed_seconds": max(0.0, self._grace - max(0.0, deadline - monotonic())),
-                **values,
-            }
+                return WorkerResult.failed(
+                    Failure(
+                        "drain_metrics_unavailable",
+                        f"Could not read vLLM drain metrics: {error}; evidence: {evidence_path}",
+                    )
+                )
+            sample = {"elapsed_seconds": max(0.0, self._grace - max(0.0, deadline - monotonic())), **values}
             samples = evidence["samples"]
             assert isinstance(samples, list)
             samples.append(sample)
@@ -84,12 +86,14 @@ class VLLMDrainWorker:
             if remaining <= 0:
                 evidence.update({"status": "busy", "final": sample})
                 self._save(evidence_path, evidence)
-                return WorkerResult.failed(Failure(
-                    "server_drain_timeout",
-                    f"vLLM remained busy after {self._grace:g}s: "
-                    f"running={values['running']}, waiting={values['waiting']}; "
-                    f"evidence: {evidence_path}",
-                ))
+                return WorkerResult.failed(
+                    Failure(
+                        "server_drain_timeout",
+                        f"vLLM remained busy after {self._grace:g}s: "
+                        f"running={values['running']}, waiting={values['waiting']}; "
+                        f"evidence: {evidence_path}",
+                    )
+                )
             await asyncio.sleep(min(self._poll_interval, remaining))
 
     async def cleanup(self, context: TrialContext) -> None:
@@ -104,8 +108,13 @@ class VLLMDrainWorker:
         return directory / self._run_name / "drain.json"
 
     def _artifact_key(self) -> str:
-        suffix = (f"_warmup_{self._warmup_index}" if self._warmup_index
-                  else f"_repeat_{self._repeat_index}" if self._repeat_index else "")
+        suffix = (
+            f"_warmup_{self._warmup_index}"
+            if self._warmup_index
+            else f"_repeat_{self._repeat_index}"
+            if self._repeat_index
+            else ""
+        )
         return f"benchmark_{self._run_name}{suffix}_drain"
 
     @staticmethod

@@ -1,7 +1,7 @@
 """Shared benchmark configuration validation."""
 
-from collections.abc import Mapping
 import re
+from collections.abc import Mapping
 
 from vllm_optimizer.config.models import VTuneConfig
 
@@ -17,21 +17,21 @@ def configured_engine(config: VTuneConfig) -> str:
 
 
 def configured_repeats(config: VTuneConfig) -> int:
-    value = config.benchmark.get("repeats", 1)
+    value = config.benchmark.get("repeats", 3)
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise ValueError("benchmark.repeats must be a positive integer")
     return value
 
 
 def configured_warmup_repeats(config: VTuneConfig) -> int:
-    value = config.benchmark.get("warmup_repeats", 0)
+    value = config.benchmark.get("warmup_repeats", 1)
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ValueError("benchmark.warmup_repeats must be a non-negative integer")
     return value
 
 
 def configured_min_repeats(config: VTuneConfig) -> int:
-    value = config.benchmark.get("min_repeats", 1)
+    value = config.benchmark.get("min_repeats", min(3, configured_repeats(config)))
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise ValueError("benchmark.min_repeats must be a positive integer")
     if value > configured_repeats(config):
@@ -46,15 +46,18 @@ def configured_failure_percentage(config: VTuneConfig) -> float:
     if accept_any:
         return 100.0
     value = config.benchmark.get("max_failure_percentage", 0)
-    if (isinstance(value, bool) or not isinstance(value, int | float)
-            or not 0 <= value <= 100):
+    if isinstance(value, bool) or not isinstance(value, int | float) or not 0 <= value <= 100:
         raise ValueError("benchmark.max_failure_percentage must be between 0 and 100")
     return float(value)
 
 
 def configured_runs(config: VTuneConfig) -> tuple[Mapping[str, object], ...]:
     unknown = set(config.benchmark) - {
-        "engine", "runs", "repeats", "warmup_repeats", "min_repeats",
+        "engine",
+        "runs",
+        "repeats",
+        "warmup_repeats",
+        "min_repeats",
         "max_failure_percentage",
         "accept_any_request_failures",
     }
@@ -79,12 +82,9 @@ def configured_runs(config: VTuneConfig) -> tuple[Mapping[str, object], ...]:
 
 
 def _validate_run(engine: str, run: Mapping[str, object], index: int, name: str) -> None:
-    allowed = ({"name", "request_format", "profile", "constraints", "data"}
-               if engine == "guidellm" else {"name", "args"})
+    allowed = {"name", "request_format", "profile", "constraints", "data"} if engine == "guidellm" else {"name", "args"}
     if unknown := set(run) - allowed:
-        raise ValueError(
-            f"Unsupported setting(s) in benchmark run {index}: {', '.join(sorted(unknown))}"
-        )
+        raise ValueError(f"Unsupported setting(s) in benchmark run {index}: {', '.join(sorted(unknown))}")
     if engine == "guidellm":
         data = run.get("data")
         if not isinstance(data, list) or len(data) != 1:

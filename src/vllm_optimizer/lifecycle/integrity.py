@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 
 
 def describe_artifacts(values: Mapping[str, object]) -> dict[str, dict[str, object]]:
@@ -22,7 +22,7 @@ def describe_artifacts(values: Mapping[str, object]) -> dict[str, dict[str, obje
 
 
 def load_retry_source(
-    source: Path, trial_ids: list[str],
+    source: Path, trial_ids: list[str]
 ) -> tuple[dict[str, object], list[dict[str, object]], tuple[str, ...]]:
     result = _read_json(source / "result.json", "source result.json")
     _schema(result, "source result.json")
@@ -30,9 +30,7 @@ def load_retry_source(
     manifests = []
     warnings = []
     if result.get("status") == "running":
-        warnings.append(
-            "source result.json still says 'running'; the process may have ended abruptly"
-        )
+        warnings.append("source result.json still says 'running'; the process may have ended abruptly")
     for trial_id in trial_ids:
         if trial_id not in indexed:
             raise ValueError(f"trial '{trial_id}' is not listed in source result.json")

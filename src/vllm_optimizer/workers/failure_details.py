@@ -9,18 +9,13 @@ from vllm_optimizer.domain.results import Failure
 _PATTERNS = (
     (("uva is not available",), "uva_unavailable", False),
     (("cuda out of memory", "torch.outofmemoryerror", "cuda oom"), "cuda_oom", False),
-    (("no such option", "unrecognized arguments", "invalid value for"),
-     "invalid_argument", False),
-    (("unsupported", "not supported", "incompatible"),
-     "unsupported_configuration", False),
-    (("connection refused", "connection reset", "service unavailable"),
-     "connection_failed", True),
+    (("no such option", "unrecognized arguments", "invalid value for"), "invalid_argument", False),
+    (("unsupported", "not supported", "incompatible"), "unsupported_configuration", False),
+    (("connection refused", "connection reset", "service unavailable"), "connection_failed", True),
 )
 
 
-def classified_failure(
-    log_path: Path, default_code: str, message: str, retryable: bool = False,
-) -> Failure:
+def classified_failure(log_path: Path, default_code: str, message: str, retryable: bool = False) -> Failure:
     excerpt = log_excerpt(log_path)
     lowered = excerpt.lower()
     code = default_code
@@ -45,6 +40,6 @@ def log_excerpt(path: Path, lines: int = 8) -> str:
 
 def _looks_like_cause(line: str) -> bool:
     lowered = line.lower()
-    return any(marker in lowered for marker in (
-        "runtimeerror:", "valueerror:", "outofmemoryerror:", "error:", "exception:",
-    ))
+    return any(
+        marker in lowered for marker in ("runtimeerror:", "valueerror:", "outofmemoryerror:", "error:", "exception:")
+    )

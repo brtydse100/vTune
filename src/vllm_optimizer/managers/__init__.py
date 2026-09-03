@@ -5,5 +5,4 @@ from .run_results import RunResultsManager
 from .scoring import ScoringManager, TrialScore
 from .trial import TrialManager
 
-__all__ = ["ResultsManager", "RunResultsManager", "ScoringManager",
-           "TrialManager", "TrialScore"]
+__all__ = ["ResultsManager", "RunResultsManager", "ScoringManager", "TrialManager", "TrialScore"]

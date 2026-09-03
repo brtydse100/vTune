@@ -22,6 +22,10 @@ CLI → YAML loader → Orchestrator → SearchSession
                                       └→ GuideLLM or vLLM Bench JSON
 
 Trial results → RunAccumulator → result.json / CSV / HTML / Optuna SQLite
+
+The run-level `result.json` stores the effective repeat, warmup, drift, and
+request-failure policy. Offline regeneration and reclassification reuse that
+policy; legacy results derive compatible defaults from the trial manifest.
 ```
 
 ## Ownership
@@ -30,16 +34,18 @@ Trial results → RunAccumulator → result.json / CSV / HTML / Optuna SQLite
 - `config/` loads typed configuration and validates runtime policy.
 - `search/` owns Grid, Random, and TPE suggestions. The orchestrator sees only
   the `SearchSession` protocol.
-- `Orchestrator` owns the sequential run loop, immutable run directory, and
-  incremental run persistence.
+- `Orchestrator` composes a run. `orchestrator_search.py` owns trial scheduling,
+  while `RunFinalizer` owns terminal cleanup and atomic terminal run states.
 - `TrialManager` owns worker ordering, attempts, reverse cleanup, and transient
   retry decisions for one trial.
 - Workers own one external action. They communicate through `TrialContext` and
   return structured statuses instead of controlling the run.
 - `ProcessRunner` launches argument arrays without a shell, creates an owned
   process group, captures logs, and optionally mirrors DEBUG output.
-- `managers/` scores and persists domain results.
-- `reporting/` converts completed run data into CSV and static HTML.
+- `managers/` scores and persists domain results; run-document serialization is
+  separate from run finalization.
+- `reporting/` converts completed run data into CSV and static HTML. Offline
+  loading and reclassification scoring are isolated from report rendering.
 - `reproduction/` records, validates, redacts, displays, and exports manifests.
 - `lifecycle/` validates immutable source artifacts and builds manual retries.
 

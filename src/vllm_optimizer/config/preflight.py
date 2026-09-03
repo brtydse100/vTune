@@ -5,8 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from vllm_optimizer.benchmarks.configuration import (
-    configured_engine, configured_failure_percentage, configured_min_repeats, configured_repeats,
-    configured_runs, configured_warmup_repeats,
+    configured_engine,
+    configured_failure_percentage,
+    configured_min_repeats,
+    configured_repeats,
+    configured_runs,
+    configured_warmup_repeats,
 )
 from vllm_optimizer.benchmarks.guidellm import build_plan as build_guidellm_plan
 from vllm_optimizer.benchmarks.timing import timeout_for_run
@@ -14,18 +18,29 @@ from vllm_optimizer.benchmarks.vllm import build_plan as build_vllm_plan
 from vllm_optimizer.config.errors import ConfigValidationError
 from vllm_optimizer.config.models import VTuneConfig
 from vllm_optimizer.config.runtime import (
-    baseline_enabled, duration, max_attempts, maximize_metric, positive, server_port,
+    baseline_enabled,
+    duration,
+    max_attempts,
+    maximize_metric,
+    positive,
+    server_port,
 )
 from vllm_optimizer.execution.slots import WorkerSlot, worker_slots
 from vllm_optimizer.reporting.llm_summary import settings as llm_settings
-from vllm_optimizer.search.grid import TrialParameters, expand_grid
 from vllm_optimizer.search.factory import validate_search
+from vllm_optimizer.search.grid import TrialParameters, expand_grid
 from vllm_optimizer.workers.configuration import build_process_spec
 
-
 _EXECUTION_KEYS = {
-    "mode", "max_parallel_trials", "gpu_allocation", "ports", "host",
-    "health_path", "shutdown_grace", "drain_grace", "retry",
+    "mode",
+    "max_parallel_trials",
+    "gpu_allocation",
+    "ports",
+    "host",
+    "health_path",
+    "shutdown_grace",
+    "drain_grace",
+    "retry",
 }
 
 
@@ -81,16 +96,10 @@ def _validate(config: VTuneConfig) -> None:
         builder(config, run, endpoint, Path("."))
 
 
-def _validate_process(
-    config: VTuneConfig, trial: TrialParameters, slots: tuple[WorkerSlot, ...],
-) -> None:
-    slot = next((candidate for candidate in slots
-                 if candidate.supports(trial.server_args, config.server)), None)
+def _validate_process(config: VTuneConfig, trial: TrialParameters, slots: tuple[WorkerSlot, ...]) -> None:
+    slot = next((candidate for candidate in slots if candidate.supports(trial.server_args, config.server)), None)
     if slots and slot is None:
         raise ValueError("a trial tensor-parallel-size exceeds every parallel worker")
     runtime_args = {"port": slot.port} if slot else None
-    runtime_env = ({"CUDA_VISIBLE_DEVICES": ",".join(map(str, slot.devices))}
-                   if slot else None)
-    build_process_spec(
-        config, trial.server_args, trial.server_env, runtime_args, runtime_env,
-    )
+    runtime_env = {"CUDA_VISIBLE_DEVICES": ",".join(map(str, slot.devices))} if slot else None
+    build_process_spec(config, trial.server_args, trial.server_env, runtime_args, runtime_env)

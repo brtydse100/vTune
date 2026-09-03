@@ -1,7 +1,10 @@
 from pathlib import Path
 
 from vllm_optimizer.benchmarks.configuration import (
-    configured_min_repeats, configured_runs, configured_warmup_repeats,
+    configured_min_repeats,
+    configured_repeats,
+    configured_runs,
+    configured_warmup_repeats,
 )
 from vllm_optimizer.benchmarks.timing import timeout_for_run
 from vllm_optimizer.config.loader import load_config
@@ -48,11 +51,33 @@ def test_request_count_run_uses_conservative_timeout_cap(tmp_path: Path) -> None
 def test_measurement_policy_accepts_warmups_and_minimum_repeats(tmp_path: Path) -> None:
     (tmp_path / "model").mkdir()
     source = tmp_path / "experiment.yaml"
-    source.write_text(_config_text().replace(
-        "benchmark:\n", "benchmark:\n  repeats: 3\n  min_repeats: 2\n  warmup_repeats: 1\n", 1,
-    ), encoding="utf-8")
+    source.write_text(
+        _config_text().replace("benchmark:\n", "benchmark:\n  repeats: 3\n  min_repeats: 2\n  warmup_repeats: 1\n", 1),
+        encoding="utf-8",
+    )
 
     config = load_config(source)
 
     assert configured_min_repeats(config) == 2
     assert configured_warmup_repeats(config) == 1
+
+
+def test_measurement_defaults_are_trustworthy(tmp_path: Path) -> None:
+    (tmp_path / "model").mkdir()
+    source = tmp_path / "experiment.yaml"
+    source.write_text(_config_text(), encoding="utf-8")
+    config = load_config(source)
+
+    assert configured_repeats(config) == 3
+    assert configured_min_repeats(config) == 3
+    assert configured_warmup_repeats(config) == 1
+
+
+def test_implicit_minimum_tracks_explicitly_lowered_repeats(tmp_path: Path) -> None:
+    (tmp_path / "model").mkdir()
+    for repeats in (1, 2):
+        source = tmp_path / f"experiment-{repeats}.yaml"
+        source.write_text(
+            _config_text().replace("benchmark:\n", f"benchmark:\n  repeats: {repeats}\n", 1), encoding="utf-8"
+        )
+        assert configured_min_repeats(load_config(source)) == repeats

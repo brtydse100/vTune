@@ -32,8 +32,10 @@ def search_warning(config: VTuneConfig) -> str | None:
     sampler, effective = validate_search(config)
     requested = config.optimization.get("trials")
     if sampler != "grid" and isinstance(requested, int) and requested > effective:
-        return (f"Requested {requested} trials, but the search space contains only "
-                f"{effective} unique configurations; running {effective} trials.")
+        return (
+            f"Requested {requested} trials, but the search space contains only "
+            f"{effective} unique configurations; running {effective} trials."
+        )
     return None
 
 

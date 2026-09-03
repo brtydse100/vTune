@@ -136,7 +136,7 @@ exposes normalized metrics to scoring and reports.
 
 Set `benchmark.warmup_repeats` to discard initial measurements and
 `benchmark.min_repeats` to require enough measured repeats for ranking. The
-default minimum is 1 for backward compatibility; use 2 or more for confidence
+default minimum is 3. Explicit lower values are exploratory smoke-test evidence
 intervals. Every configured run must meet the minimum and failure policy or the
 trial is not ranked. Set
 `analysis.drift_threshold` to change the sequential finalist rerun threshold

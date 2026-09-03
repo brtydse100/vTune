@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
-from pathlib import Path
 import re
-from typing import Mapping
+from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import Path
 
 from vllm_optimizer.config.models import ExperimentConfig, VTuneConfig
 from vllm_optimizer.lifecycle.integrity import load_retry_source
@@ -27,8 +27,11 @@ class RetryPlan:
 
 def load_retry_plan(run: Path, trial_ids: list[str]) -> RetryPlan:
     source = Path(run).resolve()
-    if (not trial_ids or len(set(trial_ids)) != len(trial_ids)
-            or any(not _TRIAL_ID.fullmatch(trial) for trial in trial_ids)):
+    if (
+        not trial_ids
+        or len(set(trial_ids)) != len(trial_ids)
+        or any(not _TRIAL_ID.fullmatch(trial) for trial in trial_ids)
+    ):
         raise ValueError("retry requires one or more unique --trial values")
     result, manifests, warnings = load_retry_source(source, trial_ids)
     model = _same(manifests, "model_path")
@@ -42,18 +45,26 @@ def load_retry_plan(run: Path, trial_ids: list[str]) -> RetryPlan:
     if not model_path.is_dir():
         raise ValueError(f"source model path is not a directory: {model_path}")
     config = VTuneConfig(
-        1, ExperimentConfig(source.parent.name, str(source.parent.parent)),
-        {"model": str(model_path), **fixed_args}, tune, fixed_env, tune_env,
-        benchmark=_mapping(benchmark, "benchmark"), baseline={"enabled": False},
+        1,
+        ExperimentConfig(source.parent.name, str(source.parent.parent)),
+        {"model": str(model_path), **fixed_args},
+        tune,
+        fixed_env,
+        tune_env,
+        benchmark=_mapping(benchmark, "benchmark"),
+        baseline={"enabled": False},
         optimization={"maximize": _text(result.get("maximize"), "maximize")},
         timeouts=_policy(manifests[0], "timeouts"),
         execution=_policy(manifests[0], "execution"),
     )
-    trials = tuple(TrialParameters(
-        trial_id,
-        _mapping(values.get("selected_args"), "selected_args"),
-        _restore_env(_mapping(values.get("selected_env"), "selected_env")),
-    ) for trial_id, values in zip(trial_ids, selected, strict=True))
+    trials = tuple(
+        TrialParameters(
+            trial_id,
+            _mapping(values.get("selected_args"), "selected_args"),
+            _restore_env(_mapping(values.get("selected_env"), "selected_env")),
+        )
+        for trial_id, values in zip(trial_ids, selected, strict=True)
+    )
     run_id = _text(result.get("run_id"), "run_id")
     sources = {trial: {"run_id": run_id, "trial_id": trial} for trial in trial_ids}
     return RetryPlan(config, trials, run_id, sources, warnings)
@@ -95,9 +106,12 @@ def _restore_env(values: Mapping[str, object]) -> dict[str, str]:
 
 def _definitions(items: list[dict[str, object]], key: str) -> dict[str, object]:
     names = {name for item in items for name in _mapping(item.get(key), key)}
-    return {name: {"values": [item.get(name) for item in
-            (_mapping(values.get(key), key) for values in items) if name in item]}
-            for name in sorted(names)}
+    return {
+        name: {
+            "values": [item.get(name) for item in (_mapping(values.get(key), key) for values in items) if name in item]
+        }
+        for name in sorted(names)
+    }
 
 
 def _policy(manifest: Mapping[str, object], name: str) -> dict[str, object]:

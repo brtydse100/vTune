@@ -11,9 +11,14 @@ from vllm_optimizer.search.grid import TrialParameters
 
 
 def _report(values: list[float]) -> TrialReport:
-    return TrialReport(1, "trial-0001", WorkerStatus.COMPLETED, ({
-        "name": "requests", "workloads": ({"metrics": {"score": value}},),
-    } for value in values), {}, {})
+    return TrialReport(
+        1,
+        "trial-0001",
+        WorkerStatus.COMPLETED,
+        ({"name": "requests", "workloads": ({"metrics": {"score": value}},)} for value in values),
+        {},
+        {},
+    )
 
 
 def test_drifted_finalist_is_rerun_and_replaced(tmp_path: Path) -> None:
@@ -28,12 +33,23 @@ def test_drifted_finalist_is_rerun_and_replaced(tmp_path: Path) -> None:
         calls.append(artifact_subdirectory)
         return validated, TrialScore("trial-0001", 1, {}, {}), {"requests": 1}
 
-    asyncio.run(validate_drifted_finalists(
-        tmp_path, session, RunResultsManager(tmp_path / "result.json"),
-        "run", "2026-01-01T00:00:00+00:00", "score", 0.05,
-        {parameters.trial_id: parameters}, {parameters.trial_id: None},
-        rerun, lambda message: None, None, {},
-    ))
+    asyncio.run(
+        validate_drifted_finalists(
+            tmp_path,
+            session,
+            RunResultsManager(tmp_path / "result.json"),
+            "run",
+            "2026-01-01T00:00:00+00:00",
+            "score",
+            0.05,
+            {parameters.trial_id: parameters},
+            {parameters.trial_id: None},
+            rerun,
+            lambda message: None,
+            None,
+            {},
+        )
+    )
 
     assert calls == ["validation-001"]
     assert session.ranking[0].value == 1

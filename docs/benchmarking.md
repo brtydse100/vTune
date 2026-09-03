@@ -6,8 +6,8 @@ JSON and `benchmark.log`, then normalizes the result for scoring and reporting.
 
 Use `benchmark.warmup_repeats` for measured-but-discarded requests before each
 benchmark repeat. Set `benchmark.repeats` to at least `benchmark.min_repeats`
-for a ranking with the configured confidence policy; the default minimum is 1
-for compatibility. Reports show sample variance, an approximate 95% confidence
+for a ranking with the configured confidence policy; the default minimum is 3.
+Reports show sample variance, a 95% Student's t confidence
 interval, and flag sequential drift above `analysis.drift_threshold` (5% by
 default). The top two flagged finalists are automatically rerun sequentially
 before a winner is recommended; validation artifacts are stored under
@@ -48,6 +48,10 @@ benchmark:
         metric-percentiles: 50,90,95,99
         ignore-eos: true
 ```
+
+When `min_repeats` is omitted, it is `min(3, repeats)`. Thus this explicit
+two-repeat smoke workload requires both measurements; setting only `repeats: 1`
+is also valid and is labeled exploratory in reports.
 
 The `vllm-opt` CLI automatically uses `--backend vllm` and also owns `model`, `host`,
 `port`, `base-url`, `save-result`, `append-result`, `result-dir`, and

@@ -1,5 +1,13 @@
 # Benchmark repeats and errors
 
+The trusted default is one discarded warmup followed by three measured repeats;
+all three are required for ranking. Explicit lower values remain available for
+smoke tests, but reports label fewer than three measurements exploratory.
+Confidence intervals use Student's t distribution. Critical values through 30
+degrees of freedom use a table; larger samples use a finite-degree Student's t
+quantile expansion rather than switching to a normal interval. Drift detection requires at
+least four sequential measurements and reports when it is unavailable.
+
 
 ```yaml
 benchmark:

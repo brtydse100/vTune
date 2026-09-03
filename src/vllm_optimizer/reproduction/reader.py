@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import re
 import shlex
-from typing import Mapping
+from collections.abc import Mapping
+from pathlib import Path
 
 _TRIAL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
@@ -31,6 +31,8 @@ def load_manifest(run: Path, trial_id: str) -> dict[str, object]:
 
 def commands(document: Mapping[str, object]) -> tuple[dict[str, object], ...]:
     values = document.get("commands", [])
+    if not isinstance(values, list):
+        return ()
     return tuple(dict(value) for value in values if isinstance(value, dict))
 
 
@@ -40,8 +42,7 @@ def render_command(command: Mapping[str, object]) -> str:
     if not isinstance(argv, list) or not argv or not all(isinstance(value, str) for value in argv):
         raise ValueError("Manifest contains an invalid command argument array")
     if not isinstance(environment, dict) or not all(
-        isinstance(key, str) and isinstance(value, str)
-        for key, value in environment.items()
+        isinstance(key, str) and isinstance(value, str) for key, value in environment.items()
     ):
         raise ValueError("Manifest contains an invalid command environment")
     prefix = [f"{key}={value}" for key, value in sorted(environment.items())]

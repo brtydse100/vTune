@@ -14,8 +14,7 @@ class TrialManager:
     """Execute workers, guarantee cleanup, and retry transient failures."""
 
     def __init__(
-        self, workers: Sequence[Worker], max_attempts: int = 1,
-        progress: Callable[[str, str], None] | None = None,
+        self, workers: Sequence[Worker], max_attempts: int = 1, progress: Callable[[str, str], None] | None = None
     ) -> None:
         if isinstance(max_attempts, bool) or not isinstance(max_attempts, int) or max_attempts < 1:
             raise ValueError("max_attempts must be a positive integer")
@@ -30,9 +29,12 @@ class TrialManager:
             self._prepare_attempt(context, index, base_values)
             outcome = await self._execute_once(context)
             context.attempts.append(
-                AttemptReport(index, outcome.status,
-                              {key: str(value) for key, value in context.artifacts.items()},
-                              outcome.failure)
+                AttemptReport(
+                    index,
+                    outcome.status,
+                    {key: str(value) for key, value in context.artifacts.items()},
+                    outcome.failure,
+                )
             )
             if not self._should_retry(outcome, index):
                 break
@@ -52,18 +54,14 @@ class TrialManager:
                     outcome = WorkerResult.failed(self._failure_from(result, worker))
                     break
                 if result.status is WorkerStatus.INTERRUPTED:
-                    outcome = WorkerResult.interrupted(
-                        self._interruption_message(result, worker)
-                    )
+                    outcome = WorkerResult.interrupted(self._interruption_message(result, worker))
                     break
                 self._progress("completed", worker.name)
         except asyncio.CancelledError:
             outcome = WorkerResult.interrupted("Trial execution was interrupted")
         except Exception as error:
             name = started[-1].name if started else "unknown"
-            outcome = WorkerResult.failed(
-                Failure("worker_execution_error", f"Worker '{name}' raised: {error}")
-            )
+            outcome = WorkerResult.failed(Failure("worker_execution_error", f"Worker '{name}' raised: {error}"))
         cleanup_errors = await self._cleanup(started, context)
         if cleanup_errors and outcome.status is WorkerStatus.COMPLETED:
             return WorkerResult.failed(Failure("cleanup_failed", "; ".join(cleanup_errors)))
@@ -81,9 +79,7 @@ class TrialManager:
         return errors
 
     @staticmethod
-    def _prepare_attempt(
-        context: TrialContext, index: int, base_values: dict[str, object]
-    ) -> None:
+    def _prepare_attempt(context: TrialContext, index: int, base_values: dict[str, object]) -> None:
         context.values = {**base_values, "attempt_index": index}
         context.artifacts = {}
 
@@ -97,9 +93,7 @@ class TrialManager:
 
     @staticmethod
     def _failure_from(result: WorkerResult[None], worker: Worker) -> Failure:
-        return result.failure or Failure(
-            "worker_failed", f"Worker '{worker.name}' failed without failure details"
-        )
+        return result.failure or Failure("worker_failed", f"Worker '{worker.name}' failed without failure details")
 
     @staticmethod
     def _interruption_message(result: WorkerResult[None], worker: Worker) -> str:

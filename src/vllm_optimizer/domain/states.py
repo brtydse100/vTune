@@ -1,9 +1,9 @@
 """Lifecycle states used by the vLLM Optimizer domain model."""
 
-from enum import Enum
+from enum import StrEnum
 
 
-class RunStatus(str, Enum):
+class RunStatus(StrEnum):
     CREATED = "created"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -12,7 +12,7 @@ class RunStatus(str, Enum):
     FAILED = "failed"
 
 
-class TrialStatus(str, Enum):
+class TrialStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -20,7 +20,7 @@ class TrialStatus(str, Enum):
     INTERRUPTED = "interrupted"
 
 
-class AttemptStatus(str, Enum):
+class AttemptStatus(StrEnum):
     CREATED = "created"
     STARTING_SERVER = "starting_server"
     WARMING_UP = "warming_up"

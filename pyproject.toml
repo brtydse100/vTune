@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vllm-optimizer"
-version = "0.1.0a12"
+version = "0.1.0a13"
 description = "Benchmark-driven configuration optimization for vLLM inference servers"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.13"
 license = "MIT"
 license-files = ["LICENSE"]
 keywords = ["vllm", "ai", "llm", "guidellm", "benchmark", "optimization", "inference"]
@@ -24,7 +24,16 @@ dependencies = ["Optuna>=4.0,<5", "PyYAML>=6.0"]
 
 [project.optional-dependencies]
 runtime = ["vllm>=0.28,<0.29", "guidellm>=0.7.3,<0.8"]
-test = ["pytest>=8,<9"]
+test = [
+  "build>=1.2,<2",
+  "coverage[toml]>=7.6,<8",
+  "mypy>=1.13,<3",
+  "pip-audit>=2.7,<3",
+  "pytest>=9.0.3,<10",
+  "ruff>=0.9,<1",
+  "twine>=6,<8",
+  "types-PyYAML>=6.0",
+]
 
 [project.urls]
 Repository = "https://github.com/brtydse100/vllm-optimizer"
@@ -36,3 +45,41 @@ vtune = "vllm_optimizer.cli:legacy_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = false
+source = ["vllm_optimizer"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.format]
+skip-magic-trailing-comma = true
+
+[tool.ruff.lint]
+select = ["B", "E4", "E7", "E9", "F", "I", "UP"]
+
+[tool.ruff.lint.isort]
+split-on-trailing-comma = false
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src/vllm_optimizer"]
+check_untyped_defs = true
+show_error_codes = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "torch"
+ignore_missing_imports = true

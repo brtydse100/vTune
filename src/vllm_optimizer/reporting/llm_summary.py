@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import asyncio
 import ipaddress
 import json
 import os
+from dataclasses import dataclass
+from typing import Protocol, cast
 from urllib.error import URLError
 from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
@@ -41,8 +42,10 @@ def settings(config: VTuneConfig) -> LLMSettings | None:
         return None
     if not isinstance(raw, dict) or set(raw) - {"base_url", "model", "api_key_env", "timeout"}:
         raise ValueError("analysis.llm_summary supports base_url, model, api_key_env, and timeout")
-    base_url, model, api_key_env = (raw.get(name) for name in ("base_url", "model", "api_key_env"))
-    if not all(isinstance(value, str) and value.strip() for value in (base_url, model, api_key_env)):
+    base_url, model, api_key_env = raw.get("base_url"), raw.get("model"), raw.get("api_key_env")
+    if not isinstance(base_url, str) or not base_url.strip():
+        raise ValueError("analysis.llm_summary requires non-empty base_url, model, and api_key_env")
+    if not isinstance(model, str) or not model.strip() or not isinstance(api_key_env, str) or not api_key_env.strip():
         raise ValueError("analysis.llm_summary requires non-empty base_url, model, and api_key_env")
     base_url = _validated_base_url(base_url)
     timeout = raw.get("timeout", 30)
@@ -55,24 +58,38 @@ def generate(settings: LLMSettings, metric: str, ranking: tuple[TrialScore, ...]
     key = os.environ.get(settings.api_key_env)
     if not key:
         raise ValueError(f"Set environment variable {settings.api_key_env} to enable the LLM summary")
-    rows = [{"trial": item.trial_id, "score": item.value,
-             "changes": redact_values(item.server_args), "error_rate": item.error_rate}
-            for item in ranking[:5]]
-    prompt = ("Summarize this local vLLM tuning outcome in at most five factual bullet points. "
-              f"Objective: maximize {metric}. Data: {json.dumps(rows, default=str)}")
-    body = json.dumps({"model": settings.model, "messages": [
-        {"role": "user", "content": prompt},
-    ], "temperature": 0}).encode()
-    request = Request(f"{settings.base_url}/chat/completions", body, {
-        "Authorization": f"Bearer {key}", "Content-Type": "application/json",
-    }, method="POST")
+    rows = [
+        {
+            "trial": item.trial_id,
+            "score": item.value,
+            "changes": redact_values(item.server_args),
+            "error_rate": item.error_rate,
+        }
+        for item in ranking[:5]
+    ]
+    prompt = (
+        "Summarize this local vLLM tuning outcome in at most five factual bullet points. "
+        f"Objective: maximize {metric}. Data: {json.dumps(rows, default=str)}"
+    )
+    body = json.dumps(
+        {"model": settings.model, "messages": [{"role": "user", "content": prompt}], "temperature": 0}
+    ).encode()
+    request = Request(
+        f"{settings.base_url}/chat/completions",
+        body,
+        {"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        method="POST",
+    )
     try:
         with urlopen(request, timeout=settings.timeout) as response:
             payload = _response_json(response)
     except (URLError, OSError) as error:
         raise ValueError("LLM summary unavailable") from error
     try:
-        content = payload["choices"][0]["message"]["content"]
+        document = cast(dict[str, object], payload)
+        choices = cast(list[dict[str, object]], document["choices"])
+        message = cast(dict[str, object], choices[0]["message"])
+        content = message["content"]
     except (KeyError, IndexError, TypeError) as error:
         raise ValueError("LLM summary response had no chat completion content") from error
     if not isinstance(content, str) or not content.strip():
@@ -100,9 +117,12 @@ def _loopback(host: str) -> bool:
         return False
 
 
+class _Readable(Protocol):
+    def read(self, size: int = -1) -> bytes: ...
+
+
 def _response_json(response: object) -> object:
-    read = getattr(response, "read")
-    data = read(_MAX_RESPONSE_BYTES + 1)
+    data = cast(_Readable, response).read(_MAX_RESPONSE_BYTES + 1)
     if len(data) > _MAX_RESPONSE_BYTES:
         raise ValueError("LLM summary response exceeded the size limit")
     try:

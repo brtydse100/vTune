@@ -61,20 +61,17 @@ class ReadinessWorker:
         started = float(marker) if isinstance(marker, int | float) else monotonic()
         process = context.values.get("server_process")
         if not isinstance(process, ManagedProcess):
-            return WorkerResult.failed(
-                Failure("server_exited_early", "No managed server process is available")
-            )
+            return WorkerResult.failed(Failure("server_exited_early", "No managed server process is available"))
 
         try:
             return await self._wait_until_ready(process, context)
         finally:
-            context.startups.append(StartupRecord(
-                int(context.values.get("attempt_index", 1)), monotonic() - started,
-            ))
+            attempt = context.values.get("attempt_index", 1)
+            if not isinstance(attempt, int) or isinstance(attempt, bool):
+                raise ValueError("attempt index must be an integer")
+            context.startups.append(StartupRecord(attempt, monotonic() - started))
 
-    async def _wait_until_ready(
-        self, process: ManagedProcess, context: TrialContext,
-    ) -> WorkerResult[None]:
+    async def _wait_until_ready(self, process: ManagedProcess, context: TrialContext) -> WorkerResult[None]:
         deadline = monotonic() + self._startup_timeout
         while True:
             if process.returncode is not None:
@@ -82,17 +79,20 @@ class ReadinessWorker:
             remaining = deadline - monotonic()
             if remaining <= 0:
                 log_path = Path(str(context.artifacts.get("vllm_log", "")))
-                return WorkerResult.failed(classified_failure(
-                    log_path, "server_startup_timeout",
-                    f"vLLM startup timed out after {self._startup_timeout:g}s; "
-                    f"process is alive; health endpoint {self._health_url} was not ready; "
-                    f"full log: {log_path}", True,
-                ))
+                return WorkerResult.failed(
+                    classified_failure(
+                        log_path,
+                        "server_startup_timeout",
+                        f"vLLM startup timed out after {self._startup_timeout:g}s; "
+                        f"process is alive; health endpoint {self._health_url} was not ready; "
+                        f"full log: {log_path}",
+                        True,
+                    )
+                )
             probe_timeout = min(self._request_timeout, remaining)
             try:
                 healthy = await asyncio.wait_for(
-                    self._health_probe(self._health_url, probe_timeout),
-                    timeout=probe_timeout,
+                    self._health_probe(self._health_url, probe_timeout), timeout=probe_timeout
                 )
             except TimeoutError:
                 healthy = False
@@ -113,7 +113,6 @@ class ReadinessWorker:
         log_path = context.artifacts.get("vllm_log", "")
         return WorkerResult.failed(
             classified_failure(
-                Path(str(log_path)), "server_exited_early",
-                f"vLLM exited before becoming ready (code {returncode})",
+                Path(str(log_path)), "server_exited_early", f"vLLM exited before becoming ready (code {returncode})"
             )
         )

@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 .venv/
+.validation-venv/
+.wheel-validation-venv/
 venv/
 
 # Packaging output
@@ -13,6 +15,9 @@ site/
 # vTune runtime output
 runs/
 *.db
+.coverage
+coverage.xml
+coverage.json
 
 # Local secrets and editor files
 .env

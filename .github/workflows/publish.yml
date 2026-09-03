@@ -1,63 +1,76 @@
 name: Publish Python package
-
 on:
-  release:
-    types: [published]
+  release: {types: [published]}
   workflow_dispatch:
     inputs:
-      ref:
-        description: Immutable tag to publish
-        required: true
-        default: v0.1.0a12
-
-permissions:
-  contents: read
+      ref: {description: Immutable tag to publish, required: true, default: v0.1.0a13}
+permissions: {contents: read}
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix: {python-version: ["3.11", "3.12"]}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}
+        with: {ref: "${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}"}
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - run: python -m pip install --upgrade build twine
-      - run: python -m build
-      - run: python -m twine check dist/*
-      - run: python -m pip install dist/*.whl "pytest>=8,<9" cyclonedx-bom
-      - run: python -m pytest -q tests
+        with: {python-version: "${{ matrix.python-version }}"}
+      - run: python -m pip install --upgrade pip ".[test]" -r requirements-docs.txt
+      - run: python -m ruff check src tests && python -m ruff format --check src tests
+      - run: python -m mypy
+      - run: python -m coverage run -m pytest && python -m coverage json && python -m coverage report
+      - if: matrix.python-version == '3.12'
+        run: python scripts/check_coverage.py
+      - if: matrix.python-version == '3.12'
+        run: python -m mkdocs build --strict
+      - run: python -m pip_audit
+  private-regression:
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: pypi
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {ref: "${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}"}
+      - name: Verify private regression evidence matches this commit
+        env: {PRIVATE_REGRESSION_COMMIT: "${{ vars.PRIVATE_REGRESSION_COMMIT }}"}
+        run: test -n "$PRIVATE_REGRESSION_COMMIT" && test "$PRIVATE_REGRESSION_COMMIT" = "$(git rev-parse HEAD)"
+  build:
+    needs: [validate, private-regression]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {ref: "${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}"}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with: {python-version: "3.12"}
+      - run: python -m pip install --upgrade build twine cyclonedx-bom
+      - name: Verify tag and package versions
+        shell: bash
+        run: |
+          expected="${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}"
+          actual="v$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          test "$expected" = "$actual"
+      - run: python -m build && python -m twine check dist/*
+      - run: python -m pip install dist/*.whl && python -m pip check
+      - run: python -c "import pathlib,vllm_optimizer; assert 'site-packages' in str(pathlib.Path(vllm_optimizer.__file__).resolve())"
       - run: cyclonedx-py environment --output-format json --output-file sbom.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: python-package-distributions
-          path: dist/
+          name: release-evidence
+          path: |
+            dist/*
+            sbom.json
           if-no-files-found: error
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: python-package-sbom
-          path: sbom.json
-          if-no-files-found: error
-
   publish:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment:
-      name: pypi
-      url: https://pypi.org/project/vllm-optimizer/
-    permissions:
-      contents: read
-      id-token: write
-      attestations: write
+    environment: {name: pypi, url: "https://pypi.org/project/vllm-optimizer/"}
+    permissions: {id-token: write, attestations: write}
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: python-package-distributions
-          path: dist/
+        with: {name: release-evidence, path: evidence/}
       - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
-        with:
-          subject-path: "dist/*"
+        with: {subject-path: "evidence/dist/*"}
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        with: {packages-dir: evidence/dist/}

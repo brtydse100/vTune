@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import replace
 from datetime import datetime
-import sys
 from threading import Event, RLock, Thread
 from time import monotonic
 
 from vllm_optimizer.config.models import VTuneConfig
 from vllm_optimizer.config.runtime import LOG_LEVELS
+from vllm_optimizer.terminal_style import elapsed as _elapsed
+from vllm_optimizer.terminal_style import progress_bar as _bar
+from vllm_optimizer.terminal_style import stage_label as _stage_label
 from vllm_optimizer.terminal_style import styled
 
 
@@ -21,7 +24,9 @@ class TerminalLogger:
     def __init__(self, level: str) -> None:
         self._threshold = LOG_LEVELS.index(level)
         self._tty = bool(getattr(sys.stdout, "isatty", lambda: False)()) and level != "DEBUG"
-        self._started, self._stages, self._drawn = monotonic(), {}, 0
+        self._started = monotonic()
+        self._stages: dict[str, tuple[str, str | None, float, str | None]] = {}
+        self._drawn = 0
         self._lock, self._stop = RLock(), Event()
         self._thread = Thread(target=self._refresh, daemon=True) if self._tty else None
         if self._thread:
@@ -35,22 +40,25 @@ class TerminalLogger:
             self._clear_live()
         return monotonic() - self._started
 
-    def debug(self, message: str) -> None: self._write("DEBUG", message, "dim")
-    def info(self, message: str) -> None: self._write("INFO", message)
-    def warning(self, message: str) -> None: self._write("WARNING", message, "yellow")
+    def debug(self, message: str) -> None:
+        self._write("DEBUG", message, "dim")
+
+    def info(self, message: str) -> None:
+        self._write("INFO", message)
+
+    def warning(self, message: str) -> None:
+        self._write("WARNING", message, "yellow")
 
     def experiment(self, values: dict[str, object]) -> None:
         self._write("INFO", "=" * 18 + " vLLM Optimizer experiment " + "=" * 18, "cyan")
         width = max(map(len, values), default=0)
         self.info("\n".join(f"{name:<{width}}  {value}" for name, value in values.items()))
 
-    def trial(self, position: int, total: int, trial_id: str,
-              values: dict[str, object], worker: str | None = None) -> None:
+    def trial(
+        self, position: int, total: int, trial_id: str, values: dict[str, object], worker: str | None = None
+    ) -> None:
         owner = f" · {worker}" if worker else ""
-        self._write(
-            "INFO", f"\n{_bar(position, total)} Trial {position} of {total} · {trial_id}{owner}",
-            "highlight",
-        )
+        self._write("INFO", f"\n{_bar(position, total)} Trial {position} of {total} · {trial_id}{owner}", "highlight")
         if values:
             width = max(map(len, values))
             self.info("\n".join(f"{name:<{width}}  {value}" for name, value in values.items()))
@@ -65,20 +73,19 @@ class TerminalLogger:
                 self._stages[key] = (label, scope, monotonic(), None)
                 self._render_live()
                 return
-            label, _, started, _ = self._stages.pop(
-                key, (label, scope, monotonic(), None),
-            )
+            label, _, started, _ = self._stages.pop(key, (label, scope, monotonic(), None))
             self._clear_live()
             icon = "✓" if event == "completed" else "✗"
             tone = "green" if event == "completed" else "red"
-            self._write("INFO" if event == "completed" else "WARNING",
-                        f"{scope + ' ' if scope else ''}{icon} {label} — {_elapsed(monotonic() - started)}",
-                        tone)
+            self._write(
+                "INFO" if event == "completed" else "WARNING",
+                f"{scope + ' ' if scope else ''}{icon} {label} — {_elapsed(monotonic() - started)}",
+                tone,
+            )
             self._render_live()
 
     def benchmark_progress(
-        self, worker: str, current: int | None, elapsed: float, limit: float,
-        scope: str | None = None,
+        self, worker: str, current: int | None, elapsed: float, limit: float, scope: str | None = None
     ) -> None:
         key = f"{scope or ''}:{worker}"
         with self._lock:
@@ -92,15 +99,10 @@ class TerminalLogger:
             self._stages[key] = (label, owner, started, detail)
             self._render_live()
 
-    def benchmark_score(
-        self, name: str, repeat: int | None, score: float | None,
-        successful_requests: int = 0,
-    ) -> None:
+    def benchmark_score(self, name: str, repeat: int | None, score: float | None, successful_requests: int = 0) -> None:
         suffix = f" · repeat {repeat}" if repeat is not None else ""
         if score is None and successful_requests:
-            self.warning(
-                f"Benchmark {name}{suffix} — waiting for the required measured repeats"
-            )
+            self.warning(f"Benchmark {name}{suffix} — waiting for the required measured repeats")
             return
         if score is None:
             self.warning(f"Benchmark {name}{suffix} — no eligible score; all requests failed")
@@ -144,25 +146,3 @@ class TerminalLogger:
             rendered = styled(message, tone, sys.stdout) if tone else message
             print(f"[{stamp} +{_elapsed(monotonic() - self._started)}] {rendered}", flush=True)
             self._render_live()
-
-
-def _stage_label(worker: str) -> str:
-    fixed = {"configuration_builder": "Building configuration", "vllm_runner": "Starting vLLM server",
-             "readiness": "Waiting for server readiness", "cleanup": "Stopping owned processes"}
-    if worker in fixed:
-        return fixed[worker]
-    if "_benchmark:" in worker:
-        _, name, *repeat = worker.split(":")
-        return f"Running benchmark {name}" + (f" ({repeat[0].replace('-', ' ')})" if repeat else "")
-    return worker.replace("_", " ").capitalize()
-
-
-def _elapsed(seconds: float) -> str:
-    minutes, remainder = divmod(max(0, int(seconds)), 60)
-    return f"{minutes:02d}:{remainder:02d}"
-
-
-def _bar(position: int, total: int) -> str:
-    width, completed = 16, min(position, total)
-    filled = round(width * completed / max(total, 1))
-    return f"[{('=' * filled).ljust(width, '-')}] {completed}/{total}"

@@ -21,5 +21,5 @@ __all__ = [
     "WorkerStatus",
     "WorkloadResult",
 ]
-from .benchmark import BenchmarkResult, WorkloadResult
 from .attempt_report import AttemptReport
+from .benchmark import BenchmarkResult, WorkloadResult

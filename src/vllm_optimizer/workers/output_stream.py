@@ -6,9 +6,7 @@ import asyncio
 from typing import IO
 
 
-async def mirror_output(
-    stream: asyncio.StreamReader, log: IO[str], label: str, console: bool,
-) -> None:
+async def mirror_output(stream: asyncio.StreamReader, log: IO[str], label: str, console: bool) -> None:
     while chunk := await stream.read(4096):
         text = chunk.decode("utf-8", errors="replace")
         log.write(text)

@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 import json
+from collections.abc import Mapping
 from pathlib import Path
 
 import optuna
 from optuna.trial import TrialState
 
 from vllm_optimizer.config.models import VTuneConfig
-from vllm_optimizer.search.grid import TrialParameters
-from vllm_optimizer.search.grid import expand_grid
+from vllm_optimizer.search.grid import TrialParameters, expand_grid
 
 
 class OptunaSearchSession:
@@ -19,11 +18,15 @@ class OptunaSearchSession:
         directory.mkdir(parents=True, exist_ok=True)
         optuna.logging.set_verbosity(optuna.logging.WARNING)
         seed = config.experiment.seed
-        backend = (optuna.samplers.RandomSampler(seed=seed) if sampler == "random"
-                   else optuna.samplers.TPESampler(seed=seed))
+        backend = (
+            optuna.samplers.RandomSampler(seed=seed) if sampler == "random" else optuna.samplers.TPESampler(seed=seed)
+        )
         self._study = optuna.create_study(
-            study_name="vllm_optimizer", direction="maximize", sampler=backend,
-            storage=f"sqlite:///{directory / 'study.db'}", load_if_exists=True,
+            study_name="vllm_optimizer",
+            direction="maximize",
+            sampler=backend,
+            storage=f"sqlite:///{directory / 'study.db'}",
+            load_if_exists=True,
         )
         self._config = config
         self._total = trials
@@ -31,7 +34,8 @@ class OptunaSearchSession:
         self._space = expand_grid(config)
         self._recover_running_trials()
         self._seen = {
-            value for trial in self._study.trials
+            value
+            for trial in self._study.trials
             if isinstance((value := trial.user_attrs.get("vllm_optimizer_configuration")), str)
         }
 
@@ -74,8 +78,7 @@ class OptunaSearchSession:
 
     def _enqueue_remaining(self) -> None:
         remaining = next(
-            (trial for trial in self._space
-             if _fingerprint(trial.server_args, trial.server_env) not in self._seen),
+            (trial for trial in self._space if _fingerprint(trial.server_args, trial.server_env) not in self._seen),
             None,
         )
         if remaining is None:
@@ -87,18 +90,14 @@ class OptunaSearchSession:
         self._study.enqueue_trial(parameters)
 
     @staticmethod
-    def _suggest_section(
-        trial: optuna.Trial, definitions: Mapping[str, object], prefix: str,
-    ) -> dict[str, object]:
+    def _suggest_section(trial: optuna.Trial, definitions: Mapping[str, object], prefix: str) -> dict[str, object]:
         return {
             name: _suggest(trial, f"{prefix}:{name}", definition, name)
             for name, definition in sorted(definitions.items())
         }
 
 
-def _suggest(
-    trial: optuna.Trial, parameter: str, definition: object, label: str,
-) -> object:
+def _suggest(trial: optuna.Trial, parameter: str, definition: object, label: str) -> object:
     if not isinstance(definition, Mapping):
         raise ValueError(f"'{label}' must be a mapping")
     if set(definition) == {"values"}:
@@ -109,13 +108,10 @@ def _suggest(
     if set(definition) != {"min", "max", "step"}:
         raise ValueError(f"'{label}' requires either values or min/max/step")
     low, high, step = definition["min"], definition["max"], definition["step"]
-    if all(isinstance(value, int) and not isinstance(value, bool)
-           for value in (low, high, step)):
+    if all(isinstance(value, int) and not isinstance(value, bool) for value in (low, high, step)):
         return trial.suggest_int(parameter, low, high, step=step)
     return trial.suggest_float(parameter, float(low), float(high), step=float(step))
 
 
-def _fingerprint(
-    arguments: Mapping[str, object], environment: Mapping[str, object],
-) -> str:
+def _fingerprint(arguments: Mapping[str, object], environment: Mapping[str, object]) -> str:
     return json.dumps([arguments, environment], sort_keys=True, default=repr)

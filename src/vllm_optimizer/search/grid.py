@@ -19,17 +19,15 @@ class TrialParameters:
 
 def expand_grid(config: VTuneConfig) -> tuple[TrialParameters, ...]:
     options = [
-        *(("arg", key, _values(value, f"tune.{key}"))
-          for key, value in sorted(config.tune.items())),
-        *(("env", key, _values(value, f"tune_env.{key}"))
-          for key, value in sorted(config.tune_env.items())),
+        *(("arg", key, _values(value, f"tune.{key}")) for key, value in sorted(config.tune.items())),
+        *(("env", key, _values(value, f"tune_env.{key}")) for key, value in sorted(config.tune_env.items())),
     ]
     combinations = product(*(entry[2] for entry in options)) if options else [()]
     trials = []
     for index, combination in enumerate(combinations, start=1):
         arguments: dict[str, object] = {}
         environment: dict[str, object] = {}
-        for (kind, name, _), value in zip(options, combination):
+        for (kind, name, _), value in zip(options, combination, strict=True):
             (arguments if kind == "arg" else environment)[name] = value
         trials.append(TrialParameters(f"trial-{index:04d}", arguments, environment))
     return tuple(trials)

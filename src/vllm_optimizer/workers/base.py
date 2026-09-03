@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from vllm_optimizer.domain.results import WorkerResult
 from vllm_optimizer.domain.attempt_report import AttemptReport
+from vllm_optimizer.domain.results import WorkerResult
 from vllm_optimizer.reproduction.models import CommandRecord, StartupRecord
 
 

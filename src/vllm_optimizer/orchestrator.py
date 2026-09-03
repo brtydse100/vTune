@@ -1,42 +1,33 @@
-from __future__ import annotations
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 
-from vllm_optimizer.benchmarks.configuration import configured_failure_percentage, configured_min_repeats, configured_runs
+from vllm_optimizer.benchmarks.configuration import configured_runs
+from vllm_optimizer.benchmarks.policy import effective_policy
 from vllm_optimizer.config.models import VTuneConfig
 from vllm_optimizer.config.preflight import validate_config
 from vllm_optimizer.config.runtime import baseline_enabled, logging_level, maximize_metric
 from vllm_optimizer.domain.results import WorkerStatus
 from vllm_optimizer.domain.trial_report import TrialReport
-from vllm_optimizer.execution import (TrialExecutor, WorkerSlot, execution_mode, parallel_trials,
-                             sequential_trials, worker_slots)
+from vllm_optimizer.execution import TrialExecutor, WorkerSlot, execution_mode, worker_slots
+from vllm_optimizer.execution.finalist_validation import validate_drifted_finalists
+from vllm_optimizer.managers.run_finalization import RunFinalizer, RunOutcome
 from vllm_optimizer.managers.run_results import RunResultsManager
-from vllm_optimizer.managers.run_session import RunAccumulator, run_status
-from vllm_optimizer.managers.scoring import ScoringManager, TrialScore
+from vllm_optimizer.managers.run_session import RunAccumulator
+from vllm_optimizer.managers.scoring import TrialScore
+from vllm_optimizer.orchestrator_messages import experiment_details
+from vllm_optimizer.orchestrator_search import run_search
+from vllm_optimizer.orchestrator_setup import run_identity, scoring
+from vllm_optimizer.reproduction.manifest import ManifestWriter
+from vllm_optimizer.reproduction.metadata import collect_metadata
 from vllm_optimizer.search import TrialParameters, create_search, search_warning
 from vllm_optimizer.search.fixed_session import FixedSearchSession
 from vllm_optimizer.terminal import TerminalLogger
-from vllm_optimizer.reporting import Reporter
-from vllm_optimizer.reporting.context import ReportContext
-from vllm_optimizer.reporting.llm_summary import summarize
-from vllm_optimizer.execution.finalist_validation import validate_drifted_finalists
-from vllm_optimizer.reproduction.manifest import ManifestWriter
-from vllm_optimizer.reproduction.metadata import collect_metadata
-@dataclass(frozen=True, slots=True)
-class RunOutcome:
-    run_id: str
-    directory: Path
-    trials: tuple[TrialReport, ...]
-    ranking: tuple[TrialScore, ...]
-    summary: str
-    status: str
 
 
 class Orchestrator:
     def __init__(
-        self, config: VTuneConfig,
+        self,
+        config: VTuneConfig,
         trials: tuple[TrialParameters, ...] | None = None,
         source_run_id: str | None = None,
         sources: Mapping[str, Mapping[str, str]] | None = None,
@@ -45,156 +36,115 @@ class Orchestrator:
         self._config = config
         self._metric = maximize_metric(config)
         run_names = tuple(str(run["name"]) for run in configured_runs(config))
-        self._scoring = ScoringManager(
-            self._metric, configured_min_repeats(config), run_names,
-            configured_failure_percentage(config),
-        )
+        self._scoring = scoring(config, self._metric, run_names)
         self._manifest = ManifestWriter({})
         self._trial_executor: TrialExecutor | None = None
         self._retry_trials = trials
         self._source_run_id = source_run_id
         self._sources = dict(sources or {})
         self._terminal = TerminalLogger(logging_level(config))
+        self._finalizer = RunFinalizer(config, self._metric, self._terminal)
 
     def validate(self) -> None:
         validate_config(self._config)
 
     async def run(self) -> RunOutcome:
-        run_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
-        started_at = datetime.now(timezone.utc).isoformat()
-        directory = Path(self._config.experiment.output_dir) / self._config.experiment.name / run_id
+        try:
+            return await self._run_unprotected()
+        except BaseException as error:
+            self._finalizer.fail(error, self._source_run_id, self._sources)
+            raise
+
+    async def _run_unprotected(self) -> RunOutcome:
+        identity = run_identity(self._config)
+        run_id, started_at, directory = identity.run_id, identity.started_at, identity.directory
         directory.mkdir(parents=True, exist_ok=True)
         mode = execution_mode(self._config)
-        results = RunResultsManager(directory / "result.json", mode)
+        results = RunResultsManager(directory / "result.json", mode, effective_policy(self._config).to_dict())
         names = tuple(str(run["name"]) for run in configured_runs(self._config))
         session = RunAccumulator(names, self._scoring)
-        session.persist(results, run_id, self._metric, "running", started_at, None,
-                        self._source_run_id, self._sources)
+        self._finalizer.start(results, session, run_id, started_at)
+        session.persist(results, run_id, self._metric, "running", started_at, None, self._source_run_id, self._sources)
         self._terminal.info(f"Run: {run_id}\nDirectory: {directory.resolve()}")
         if self._retry_trials is None and (warning := search_warning(self._config)):
             self._terminal.warning(f"WARNING: {warning}")
         self._manifest = ManifestWriter(collect_metadata())
-        self._trial_executor = TrialExecutor(
-            self._config, self._scoring, self._terminal, self._manifest, self._sources,
-        )
+        self._trial_executor = TrialExecutor(self._config, self._scoring, self._terminal, self._manifest, self._sources)
         slots = worker_slots(self._config)
-        search = (FixedSearchSession(self._retry_trials) if self._retry_trials is not None
-                  else create_search(self._config, directory))
-        self._terminal.experiment({
-            "Experiment": self._config.experiment.name,
-            "Sampler": self._config.optimization.get("sampler", "grid"),
-            "Trials": search.total,
-            "Mode": mode,
-            "Workers": len(slots) if slots else 1,
-            "Baseline": "enabled" if (
-                self._retry_trials is None and baseline_enabled(self._config)
-            ) else "disabled",
-            "Objective": self._metric,
-            "Output": directory.resolve(),
-        })
+        search = (
+            FixedSearchSession(self._retry_trials)
+            if self._retry_trials is not None
+            else create_search(self._config, directory)
+        )
+        self._terminal.experiment(
+            experiment_details(
+                self._config, search.total, mode, slots, self._retry_trials is not None, self._metric, directory
+            )
+        )
         interrupted = False
         parameters_by_id: dict[str, TrialParameters] = {}
         slots_by_id: dict[str, WorkerSlot | None] = {}
         if self._retry_trials is None and baseline_enabled(self._config):
             self._terminal.baseline()
             parameters = TrialParameters("baseline", {}, {})
-            baseline_slot = next((slot for slot in slots
-                                  if slot.supports({}, self._config.server)), None)
-            report, score, by_benchmark = await self._run_trial(
-                directory, parameters, baseline_slot,
-            )
+            baseline_slot = next((slot for slot in slots if slot.supports({}, self._config.server)), None)
+            report, score, by_benchmark = await self._run_trial(directory, parameters, baseline_slot)
             session.record(parameters, report, score, by_benchmark, baseline=True)
-            session.persist(results, run_id, self._metric, "running", started_at, None,
-                            self._source_run_id, self._sources)
+            session.persist(
+                results, run_id, self._metric, "running", started_at, None, self._source_run_id, self._sources
+            )
             if score:
                 self._terminal.info(f"OK Baseline completed — score={score.value:.4f}")
             else:
-                detail = (f"{report.failure.code}: {report.failure.message}"
-                          if report.failure else report.status.value)
+                detail = f"{report.failure.code}: {report.failure.message}" if report.failure else report.status.value
                 self._terminal.warning(f"Baseline {report.status.value}: {detail}")
             interrupted = report.status is WorkerStatus.INTERRUPTED
+
         async def execute(parameters: TrialParameters, slot: WorkerSlot | None):
             return await self._run_trial(directory, parameters, slot)
 
-        def started(position: int, parameters: TrialParameters,
-                    slot: WorkerSlot | None) -> None:
-            shown = {**parameters.server_args,
-                     **{f"env.{key}": value for key, value in parameters.server_env.items()}}
-            self._terminal.trial(
-                position, search.total, parameters.trial_id, shown,
-                slot.name if slot else None,
-            )
-
-        scheduled = (sequential_trials(FixedSearchSession(()), execute, started)
-                     if interrupted else parallel_trials(
-                         search, slots, dict(self._config.server), execute, started,
-                     ) if slots else sequential_trials(search, execute, started))
-        async for completed in scheduled:
-            if interrupted:
-                break
-            position, parameters = completed.position, completed.parameters
-            parameters_by_id[parameters.trial_id] = parameters
-            slots_by_id[parameters.trial_id] = completed.slot
-            owner = (f"[{completed.slot.name}][{parameters.trial_id}] "
-                     if completed.slot else "")
-            report, score, scores_by_benchmark = completed.value
-            session.record(parameters, report, score, scores_by_benchmark)
-            if score is not None:
-                search.complete(parameters, score.value)
-                failed_requests = score.errored_requests + score.incomplete_requests
-                self._terminal.info(
-                    f"{owner}OK Trial completed — score={score.value:.4f}, "
-                    f"errors={failed_requests}, error_rate={score.error_rate:.2%}"
-                )
-            else:
-                search.fail(parameters, report.status is WorkerStatus.INTERRUPTED)
-                detail = (f"{report.failure.code}: {report.failure.message}"
-                          if report.failure else report.status.value)
-                self._terminal.warning(
-                    f"{owner}Trial {position} {report.status.value}: {detail}"
-                )
-            session.persist(results, run_id, self._metric, "running", started_at, None,
-                            self._source_run_id, self._sources)
-            if report.status is WorkerStatus.INTERRUPTED:
-                interrupted = True
-                break
+        searched = await run_search(
+            search,
+            slots,
+            dict(self._config.server),
+            execute,
+            self._terminal,
+            session,
+            results,
+            run_id,
+            self._metric,
+            started_at,
+            interrupted,
+            self._source_run_id,
+            self._sources,
+        )
+        parameters_by_id, slots_by_id, interrupted = searched.parameters, searched.slots, searched.interrupted
         if not interrupted:
             await validate_drifted_finalists(
-                directory, session, results, run_id, started_at, self._metric,
+                directory,
+                session,
+                results,
+                run_id,
+                started_at,
+                self._metric,
                 float(self._config.analysis.get("drift_threshold", 0.05)),
-                parameters_by_id, slots_by_id, self._run_trial, self._terminal.warning,
-                self._source_run_id, self._sources,
+                parameters_by_id,
+                slots_by_id,
+                self._run_trial,
+                self._terminal.warning,
+                self._source_run_id,
+                self._sources,
             )
-        status = run_status(tuple(session.reports))
-        completed_at = datetime.now(timezone.utc).isoformat()
-        reports, ranking = tuple(session.reports), session.ranking
-        by_benchmark = session.benchmark_rankings
-        llm_summary, llm_error = await summarize(self._config, self._metric, ranking)
-        if llm_error:
-            self._terminal.warning(llm_error)
-        report_context = ReportContext(
-            run_id, status, started_at, completed_at, self._source_run_id, self._sources,
-            by_benchmark, mode, names, llm_summary, llm_error,
-            configured_min_repeats(self._config),
-            float(self._config.analysis.get("drift_threshold", 0.05)),
-        )
-        session.persist(results, run_id, self._metric, status, started_at, completed_at,
-                        self._source_run_id, self._sources, llm_summary)
-        Reporter(directory).write(
-            self._metric, reports, ranking, session.baseline, report_context,
-        )
-        details = results.summary(self._metric, reports, ranking, by_benchmark,
-                                  session.baseline)
-        summary = f"Run status: {status}\n{details}"
-        self._terminal.session_complete(self._terminal.close())
-        return RunOutcome(run_id, directory, reports, ranking, summary, status)
+        finalized = await self._finalizer.complete(self._source_run_id, self._sources, names, mode)
+        return RunOutcome(run_id, directory, finalized.reports, finalized.ranking, finalized.summary, finalized.status)
 
     async def _run_trial(
-        self, directory: Path, parameters: TrialParameters,
-        slot: WorkerSlot | None = None, artifact_subdirectory: str | None = None,
+        self,
+        directory: Path,
+        parameters: TrialParameters,
+        slot: WorkerSlot | None = None,
+        artifact_subdirectory: str | None = None,
     ) -> tuple[TrialReport, TrialScore | None, dict[str, float]]:
         if self._trial_executor is None:
             raise RuntimeError("trial executor is not initialized")
-        return await self._trial_executor.execute(
-            directory, parameters, slot, artifact_subdirectory,
-        )
+        return await self._trial_executor.execute(directory, parameters, slot, artifact_subdirectory)

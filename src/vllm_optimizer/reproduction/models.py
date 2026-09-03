@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Mapping
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,8 +17,10 @@ class CommandRecord:
 
     def to_dict(self) -> dict[str, object]:
         document: dict[str, object] = {
-            "kind": self.kind, "attempt": self.attempt,
-            "argv": list(self.argv), "environment": dict(self.environment),
+            "kind": self.kind,
+            "attempt": self.attempt,
+            "argv": list(self.argv),
+            "environment": dict(self.environment),
         }
         if self.benchmark is not None:
             document["benchmark"] = self.benchmark

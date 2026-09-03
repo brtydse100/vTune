@@ -26,14 +26,16 @@ def test_guidellm_command_renders_nested_options(tmp_path: Path) -> None:
 
 
 def test_vllm_command_normalizes_flags_and_supplies_endpoint(tmp_path: Path) -> None:
-    run = {"name": "random", "args": {
-        "dataset_name": "random", "num_prompts": 2,
-        "max_concurrency": 4, "ignore_eos": True,
-    }}
+    run = {
+        "name": "random",
+        "args": {"dataset_name": "random", "num_prompts": 2, "max_concurrency": 4, "ignore_eos": True},
+    }
 
     plan = build_vllm_plan(_config(), run, "http://localhost:8123", tmp_path)
 
     assert "--host" in plan.argv and plan.argv[plan.argv.index("--host") + 1] == "localhost"
     assert "--port" in plan.argv and plan.argv[plan.argv.index("--port") + 1] == "8123"
-    assert ("--dataset-name", "random") == tuple(plan.argv[plan.argv.index("--dataset-name"):plan.argv.index("--dataset-name") + 2])
+    assert ("--dataset-name", "random") == tuple(
+        plan.argv[plan.argv.index("--dataset-name") : plan.argv.index("--dataset-name") + 2]
+    )
     assert "--ignore-eos" in plan.argv

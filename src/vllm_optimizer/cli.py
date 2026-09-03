@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import sys
 from collections.abc import Sequence
 from pathlib import Path
-import sys
 
+from vllm_optimizer.cli_options import CLIUsageError, validate_cli_options
 from vllm_optimizer.config.errors import ConfigError
 from vllm_optimizer.config.loader import load_config
 from vllm_optimizer.config.runtime import model_path
-from vllm_optimizer.cli_options import CLIUsageError, validate_cli_options
 from vllm_optimizer.lifecycle import load_retry_plan
 from vllm_optimizer.orchestrator import Orchestrator
 from vllm_optimizer.reporting.offline import regenerate_report
@@ -24,7 +24,8 @@ from vllm_optimizer.terminal_style import styled
 
 def build_parser(prog: str = "vllm-opt") -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog=prog, description="Benchmark and optimize vLLM serving configurations.",
+        prog=prog,
+        description="Benchmark and optimize vLLM serving configurations.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""Commands:
   {prog} --config experiment.yaml                 Start an experiment
@@ -36,22 +37,33 @@ def build_parser(prog: str = "vllm-opt") -> argparse.ArgumentParser:
   {prog} reclassify --run RUN --max-failure-percentage N  Rescore stored data""",
     )
     parser.add_argument(
-        "action", nargs="?", choices=("validate", "export", "reproduce", "retry", "report", "reclassify"),
-        help="Post-run action; omit to start a new experiment.")
-    parser.add_argument("--config", "-c", metavar="YAML",
-                        help="Experiment YAML for a new run or validation.")
-    parser.add_argument("--run", type=Path, metavar="DIRECTORY",
-                        help="Existing immutable run directory.")
-    parser.add_argument("--trial", action="append", metavar="ID",
-                        help="Trial ID; repeat the option when retrying several trials.")
-    parser.add_argument("--output", type=Path, metavar="DIRECTORY",
-                        help="Destination for an offline regenerated report.")
-    parser.add_argument("--max-failure-percentage", type=float, metavar="PERCENT",
-                        help="Accepted failed-request percentage for reclassification.")
-    parser.add_argument("--accept-any-request-failures", action="store_true",
-                        help="Accept any request failure percentage during reclassification.")
-    parser.add_argument("--verbose", action="store_true",
-                        help="Override logging.level with DEBUG and stream child logs.")
+        "action",
+        nargs="?",
+        choices=("validate", "export", "reproduce", "retry", "report", "reclassify"),
+        help="Post-run action; omit to start a new experiment.",
+    )
+    parser.add_argument("--config", "-c", metavar="YAML", help="Experiment YAML for a new run or validation.")
+    parser.add_argument("--run", type=Path, metavar="DIRECTORY", help="Existing immutable run directory.")
+    parser.add_argument(
+        "--trial", action="append", metavar="ID", help="Trial ID; repeat the option when retrying several trials."
+    )
+    parser.add_argument(
+        "--output", type=Path, metavar="DIRECTORY", help="Destination for an offline regenerated report."
+    )
+    parser.add_argument(
+        "--max-failure-percentage",
+        type=float,
+        metavar="PERCENT",
+        help="Accepted failed-request percentage for reclassification.",
+    )
+    parser.add_argument(
+        "--accept-any-request-failures",
+        action="store_true",
+        help="Accept any request failure percentage during reclassification.",
+    )
+    parser.add_argument(
+        "--verbose", action="store_true", help="Override logging.level with DEBUG and stream child logs."
+    )
     return parser
 
 
@@ -60,10 +72,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def legacy_main(argv: Sequence[str] | None = None) -> int:
-    print(
-        "The 'vtune' command is deprecated; use 'vllm-opt' instead.",
-        file=sys.stderr,
-    )
+    print("The 'vtune' command is deprecated; use 'vllm-opt' instead.", file=sys.stderr)
     return _run(argv, "vtune")
 
 
@@ -82,19 +91,17 @@ def _run(argv: Sequence[str] | None, prog: str) -> int:
             for warning in plan.warnings:
                 print(f"Integrity warning: {warning}", file=sys.stderr)
             retry_config = with_debug_logging(plan.config) if args.verbose else plan.config
-            outcome = asyncio.run(Orchestrator(
-                retry_config, plan.trials, plan.source_run_id, plan.sources,
-            ).run())
+            outcome = asyncio.run(Orchestrator(retry_config, plan.trials, plan.source_run_id, plan.sources).run())
         elif args.action == "report":
-            generated = regenerate_report(args.run, args.output)
-            print(f"Offline report regenerated: {generated.directory}")
-            for warning in generated.warnings:
+            regenerated = regenerate_report(args.run, args.output)
+            print(f"Offline report regenerated: {regenerated.directory}")
+            for warning in regenerated.warnings:
                 print(f"Integrity warning: {warning}", file=sys.stderr)
             return 0
         elif args.action == "reclassify":
             maximum = 100.0 if args.accept_any_request_failures else args.max_failure_percentage
-            generated = reclassify_run(args.run, maximum, args.output)
-            print(f"Stored benchmarks reclassified: {generated.directory}")
+            reclassified = reclassify_run(args.run, maximum, args.output)
+            print(f"Stored benchmarks reclassified: {reclassified.directory}")
             return 0
         else:
             config = load_config(args.config)

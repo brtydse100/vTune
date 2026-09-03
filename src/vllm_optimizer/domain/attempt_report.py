@@ -1,7 +1,7 @@
 """Persisted outcome for one trial execution attempt."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
 from vllm_optimizer.domain.results import Failure, WorkerStatus
 

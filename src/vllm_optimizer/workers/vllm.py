@@ -7,8 +7,8 @@ from time import monotonic
 
 from vllm_optimizer.domain.results import Failure, WorkerResult
 from vllm_optimizer.reproduction.models import CommandRecord
-from vllm_optimizer.workers.base import TrialContext
 from vllm_optimizer.workers.attempts import attempt_path
+from vllm_optimizer.workers.base import TrialContext
 from vllm_optimizer.workers.process import ManagedProcess, ProcessRunner, ProcessSpec
 
 
@@ -18,12 +18,7 @@ class VLLMRunnerWorker:
     name = "vllm_runner"
     _ownership_key = "_vllm_runner_owned_process"
 
-    def __init__(
-        self,
-        runner: ProcessRunner,
-        log_path: Path,
-        shutdown_grace: float = 5.0,
-    ) -> None:
+    def __init__(self, runner: ProcessRunner, log_path: Path, shutdown_grace: float = 5.0) -> None:
         if shutdown_grace < 0:
             raise ValueError("shutdown_grace must not be negative")
         self._runner = runner
@@ -35,31 +30,30 @@ class VLLMRunnerWorker:
         if not isinstance(spec, ProcessSpec):
             return WorkerResult.failed(
                 Failure(
-                    code="server_launch_failed",
-                    message="Trial context does not contain a valid process specification",
+                    code="server_launch_failed", message="Trial context does not contain a valid process specification"
                 )
             )
 
         try:
             log_path = attempt_path(self._log_path, context)
-            context.commands.append(CommandRecord(
-                "vllm", spec.argv, int(context.values.get("attempt_index", 1)), spec.env,
-            ))
+            attempt = context.values.get("attempt_index", 1)
+            if not isinstance(attempt, int) or isinstance(attempt, bool):
+                raise ValueError("attempt index must be an integer")
+            context.commands.append(CommandRecord("vllm", spec.argv, attempt, spec.env))
             context.values["vllm_started_at"] = monotonic()
             process = await self._runner.start(spec, log_path)
         except FileNotFoundError:
-            return WorkerResult.failed(Failure(
-                code="vllm_not_found",
-                message=("The 'vllm' command was not found. On Linux or WSL, "
-                         "install runtime tools with: pip install 'vllm-optimizer[runtime]'"),
-            ))
-        except Exception as error:
             return WorkerResult.failed(
                 Failure(
-                    code="server_launch_failed",
-                    message=f"Unable to start vLLM: {error}",
+                    code="vllm_not_found",
+                    message=(
+                        "The 'vllm' command was not found. On Linux or WSL, "
+                        "install runtime tools with: pip install 'vllm-optimizer[runtime]'"
+                    ),
                 )
             )
+        except Exception as error:
+            return WorkerResult.failed(Failure(code="server_launch_failed", message=f"Unable to start vLLM: {error}"))
 
         context.values["server_process"] = process
         context.values[self._ownership_key] = process

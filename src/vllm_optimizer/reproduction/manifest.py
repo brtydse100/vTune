@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 
 from vllm_optimizer.config.models import VTuneConfig
 from vllm_optimizer.config.runtime import model_path
 from vllm_optimizer.lifecycle.integrity import describe_artifacts
 from vllm_optimizer.reproduction.models import CommandRecord
-from vllm_optimizer.reproduction.redaction import (
-    redact_arguments, redact_environment, redact_values,
-)
+from vllm_optimizer.reproduction.redaction import redact, redact_arguments, redact_environment, redact_values
 from vllm_optimizer.search.grid import TrialParameters
 from vllm_optimizer.workers.base import TrialContext
 
@@ -22,8 +20,12 @@ class ManifestWriter:
         self._metadata = dict(metadata)
 
     def write(
-        self, path: Path, config: VTuneConfig, parameters: TrialParameters,
-        context: TrialContext, status: str,
+        self,
+        path: Path,
+        config: VTuneConfig,
+        parameters: TrialParameters,
+        context: TrialContext,
+        status: str,
         source: Mapping[str, str] | None = None,
     ) -> None:
         document = {
@@ -33,19 +35,13 @@ class ManifestWriter:
             "execution": dict(context.execution),
             "model_path": model_path(config),
             "parameters": {
-                "fixed_args": redact_values({
-                    name: value for name, value in config.server.items()
-                    if name != "model"
-                }),
+                "fixed_args": redact_values({name: value for name, value in config.server.items() if name != "model"}),
                 "selected_args": redact_values(parameters.server_args),
                 "fixed_env": redact_environment(_strings(config.env)),
                 "selected_env": redact_environment(_strings(parameters.server_env)),
             },
-            "benchmark": dict(config.benchmark),
-            "policy": {
-                "timeouts": dict(config.timeouts),
-                "execution": dict(config.execution),
-            },
+            "benchmark": redact(config.benchmark),
+            "policy": {"timeouts": dict(config.timeouts), "execution": dict(config.execution)},
             "artifacts": describe_artifacts(context.artifacts),
             "commands": [_command_document(command) for command in context.commands],
             "startup": [record.to_dict() for record in context.startups],

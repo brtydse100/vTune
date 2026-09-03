@@ -25,10 +25,11 @@ def build_process_spec(
     _validate_selected_keys(chosen_args, config.tune, "argument")
     _validate_selected_keys(chosen_env, config.tune_env, "environment")
 
-    arguments = {"host": config.execution.get("host", "127.0.0.1"),
-                 "port": server_port(config),
-                 **{name: value for name, value in config.server.items()
-                    if name != "model"}}
+    arguments = {
+        "host": config.execution.get("host", "127.0.0.1"),
+        "port": server_port(config),
+        **{name: value for name, value in config.server.items() if name != "model"},
+    }
     arguments.update(chosen_args)
     arguments.update(runtime_args or {})
     argv = ["vllm", "serve", model_path(config)]
@@ -56,13 +57,10 @@ class ConfigurationBuilderWorker:
     async def execute(self, context: TrialContext) -> WorkerResult[None]:
         try:
             process_spec = build_process_spec(
-                self.config, self.selected_args, self.selected_env,
-                self.runtime_args, self.runtime_env,
+                self.config, self.selected_args, self.selected_env, self.runtime_args, self.runtime_env
             )
         except (TypeError, ValueError) as error:
-            return WorkerResult.failed(
-                Failure(code="configuration_invalid", message=str(error))
-            )
+            return WorkerResult.failed(Failure(code="configuration_invalid", message=str(error)))
         context.values["process_spec"] = process_spec
         return WorkerResult.completed()
 
@@ -70,9 +68,7 @@ class ConfigurationBuilderWorker:
         """Configuration construction owns no external resources."""
 
 
-def _validate_selected_keys(
-    selected: Mapping[str, object], allowed: Mapping[str, object], label: str
-) -> None:
+def _validate_selected_keys(selected: Mapping[str, object], allowed: Mapping[str, object], label: str) -> None:
     unknown = sorted(set(selected) - set(allowed))
     if unknown:
         names = ", ".join(unknown)
@@ -91,9 +87,7 @@ def _render_argument(name: str, value: object) -> list[str]:
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         rendered: list[str] = []
         for item in value:
-            if item is None or isinstance(item, (Mapping, Sequence)) and not isinstance(
-                item, (str, bytes, bytearray)
-            ):
+            if item is None or isinstance(item, (Mapping, Sequence)) and not isinstance(item, (str, bytes, bytearray)):
                 raise ValueError(f"Argument '{name}' contains a non-scalar value")
             rendered.extend((flag, str(item)))
         return rendered

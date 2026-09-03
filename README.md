@@ -1,5 +1,8 @@
 # vLLM Optimizer
 
+> **Alpha status:** native Linux, real vLLM 0.28, L40/H100,
+> tensor-parallel, and multi-GPU evidence remain **hardware validation pending**.
+
 vLLM Optimizer is a local-first benchmarking and optimization tool for vLLM
 serving configurations. Users define the parameters and workloads they care
 about; the `vllm-opt` CLI manages the server lifecycle, runs repeatable benchmarks,

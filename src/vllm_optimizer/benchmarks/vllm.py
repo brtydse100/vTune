@@ -2,20 +2,30 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
-import json
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from vllm_optimizer.benchmarks.metrics import normalize_vllm_metrics
 from vllm_optimizer.config.models import VTuneConfig
 from vllm_optimizer.config.runtime import model_path
 from vllm_optimizer.domain.benchmark import BenchmarkResult, WorkloadResult
-from vllm_optimizer.benchmarks.metrics import normalize_vllm_metrics
 
-_RESERVED = {"backend", "model", "host", "port", "base-url", "save-result", "append-result",
-             "result-dir", "result-filename", "save-detailed"}
+_RESERVED = {
+    "backend",
+    "model",
+    "host",
+    "port",
+    "base-url",
+    "save-result",
+    "append-result",
+    "result-dir",
+    "result-filename",
+    "save-detailed",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,28 +37,42 @@ class VLLMBenchPlan:
     log_path: Path
 
 
-def build_plan(config: VTuneConfig, run: Mapping[str, object], endpoint: str,
-               artifacts: Path) -> VLLMBenchPlan:
+def build_plan(config: VTuneConfig, run: Mapping[str, object], endpoint: str, artifacts: Path) -> VLLMBenchPlan:
     name = str(run["name"])
     args = _mapping(run.get("args", {}), f"vllm benchmark run '{name}' args")
     normalized = {key.replace("_", "-"): value for key, value in args.items()}
     if protected := _RESERVED.intersection(normalized):
-        raise ValueError(
-            "vLLM Optimizer controls vLLM benchmark argument(s): "
-            f"{', '.join(sorted(protected))}"
-        )
+        raise ValueError(f"vLLM Optimizer controls vLLM benchmark argument(s): {', '.join(sorted(protected))}")
     parsed = urlsplit(endpoint)
     directory = Path(artifacts) / name
     result = directory / "results.json"
-    argv = ["vllm", "bench", "serve", "--backend", "vllm",
-            "--model", model_path(config),
-            "--host", parsed.hostname or "127.0.0.1", "--port", str(parsed.port or 8000)]
+    argv = [
+        "vllm",
+        "bench",
+        "serve",
+        "--backend",
+        "vllm",
+        "--model",
+        model_path(config),
+        "--host",
+        parsed.hostname or "127.0.0.1",
+        "--port",
+        str(parsed.port or 8000),
+    ]
     for key, value in normalized.items():
         argv.extend(_argument(key, value))
-    argv.extend(("--save-result", "--save-detailed", "--result-dir", str(directory),
-                 "--result-filename", result.name, "--disable-tqdm"))
-    return VLLMBenchPlan(name, tuple(argv), directory, result,
-                         directory / "benchmark.log")
+    argv.extend(
+        (
+            "--save-result",
+            "--save-detailed",
+            "--result-dir",
+            str(directory),
+            "--result-filename",
+            result.name,
+            "--disable-tqdm",
+        )
+    )
+    return VLLMBenchPlan(name, tuple(argv), directory, result, directory / "benchmark.log")
 
 
 def parse_result(path: Path, run_name: str) -> BenchmarkResult:
@@ -60,12 +84,20 @@ def parse_result(path: Path, run_name: str) -> BenchmarkResult:
     metrics = normalize_vllm_metrics(document)
     if isinstance(document.get("num_prompts"), int) and not isinstance(document.get("num_prompts"), bool):
         metrics["request_total"] = document["num_prompts"]
-    configuration = {key: document[key] for key in (
-        "backend", "model_id", "num_prompts", "request_rate", "burstiness",
-        "max_concurrency", "dataset_name",
-    ) if key in document}
-    return BenchmarkResult(run_name, "vllm", _version(),
-                           (WorkloadResult(0, configuration, metrics),), source)
+    configuration = {
+        key: document[key]
+        for key in (
+            "backend",
+            "model_id",
+            "num_prompts",
+            "request_rate",
+            "burstiness",
+            "max_concurrency",
+            "dataset_name",
+        )
+        if key in document
+    }
+    return BenchmarkResult(run_name, "vllm", _version(), (WorkloadResult(0, configuration, metrics),), source)
 
 
 def _argument(name: str, value: object) -> tuple[str, ...]:

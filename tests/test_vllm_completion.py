@@ -22,23 +22,22 @@ class _Runner:
         self.document = document
 
     async def start(self, spec: ProcessSpec, log_path: Path) -> _Process:
-        (log_path.parent / "results.json").write_text(
-            json.dumps(self.document), encoding="utf-8",
-        )
+        (log_path.parent / "results.json").write_text(json.dumps(self.document), encoding="utf-8")
         return _Process()
 
 
 def test_vllm_worker_rejects_early_success_exit(tmp_path: Path) -> None:
     run = {"name": "requests", "args": {"num_prompts": 2}}
     config = VTuneConfig(
-        1, ExperimentConfig("test"), {"model": "demo"},
+        1,
+        ExperimentConfig("test"),
+        {"model": "demo"},
         benchmark={"engine": "vllm", "runs": [run]},
         optimization={"maximize": "requests_per_second"},
     )
-    runner = _Runner({
-        "backend": "vllm", "model_id": "demo", "num_prompts": 2,
-        "completed": 1, "request_throughput": 5.0,
-    })
+    runner = _Runner(
+        {"backend": "vllm", "model_id": "demo", "num_prompts": 2, "completed": 1, "request_throughput": 5.0}
+    )
     worker = VLLMBenchmarkWorker(config, run, runner, tmp_path)
     context = TrialContext("trial", {"server_endpoint": "http://127.0.0.1:8000"})
 

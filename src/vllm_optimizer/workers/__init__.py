@@ -2,8 +2,8 @@
 
 from .base import TrialContext, Worker
 from .benchmark import GuideLLMBenchmarkWorker
-from .drain import VLLMDrainWorker
 from .configuration import ConfigurationBuilderWorker, build_process_spec
+from .drain import VLLMDrainWorker
 from .process import ManagedProcess, ProcessRunner, ProcessSpec
 from .readiness import ReadinessWorker
 from .vllm import VLLMRunnerWorker

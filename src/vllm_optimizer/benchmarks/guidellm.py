@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
-import json
 from pathlib import Path
 
+from vllm_optimizer.benchmarks.metrics import normalize_guidellm_metrics
+from vllm_optimizer.benchmarks.timing import normalize_durations
 from vllm_optimizer.config.models import VTuneConfig
 from vllm_optimizer.config.runtime import model_path
 from vllm_optimizer.domain.benchmark import BenchmarkResult, WorkloadResult
-from vllm_optimizer.benchmarks.timing import normalize_durations
-from vllm_optimizer.benchmarks.metrics import normalize_guidellm_metrics
+
 
 @dataclass(frozen=True, slots=True)
 class GuideLLMPlan:
@@ -24,17 +25,17 @@ class GuideLLMPlan:
 
 def configured_runs(config: VTuneConfig) -> tuple[Mapping[str, object], ...]:
     from vllm_optimizer.benchmarks.configuration import configured_runs as validate
+
     return validate(config)
 
 
 def configured_repeats(config: VTuneConfig) -> int:
     from vllm_optimizer.benchmarks.configuration import configured_repeats as validate
+
     return validate(config)
 
 
-def build_plan(
-    config: VTuneConfig, run: Mapping[str, object], endpoint: str, artifacts: Path,
-) -> GuideLLMPlan:
+def build_plan(config: VTuneConfig, run: Mapping[str, object], endpoint: str, artifacts: Path) -> GuideLLMPlan:
     name = run["name"]
     request_format = run.get("request_format", "/v1/completions")
     if not isinstance(request_format, str) or not request_format.strip():
@@ -42,10 +43,14 @@ def build_plan(
     directory = Path(artifacts) / str(name)
     json_path = directory / "results.json"
     argv = [
-        "guidellm", "run", "--backend",
-        _serialize({"kind": "openai_http", "target": endpoint,
-                    "model": model_path(config), "request_format": request_format}),
-        "--profile", _serialize(_mapping(run.get("profile"), "profile")),
+        "guidellm",
+        "run",
+        "--backend",
+        _serialize(
+            {"kind": "openai_http", "target": endpoint, "model": model_path(config), "request_format": request_format}
+        ),
+        "--profile",
+        _serialize(_mapping(run.get("profile"), "profile")),
     ]
     for option, label in (("constraints", "constraint"), ("data", "data")):
         values = run.get(option, [])
@@ -56,8 +61,7 @@ def build_plan(
                 value = {**value, "seconds": normalize_durations(value.get("seconds"))}
             argv.extend((f"--{label}", _serialize(_mapping(value, label))))
     argv.extend(("--output", f"kind=json,path={json_path}"))
-    return GuideLLMPlan(str(name), tuple(argv), directory, json_path,
-                        directory / "benchmark.log")
+    return GuideLLMPlan(str(name), tuple(argv), directory, json_path, directory / "benchmark.log")
 
 
 def parse_result(path: Path, run_name: str) -> BenchmarkResult:
@@ -75,7 +79,8 @@ def parse_result(path: Path, run_name: str) -> BenchmarkResult:
         raise ValueError("GuideLLM result must contain benchmarks")
     workloads = tuple(
         WorkloadResult(
-            index, _mapping(item.get("config"), f"benchmark {index} config"),
+            index,
+            _mapping(item.get("config"), f"benchmark {index} config"),
             _normalized_metrics(_mapping(item.get("metrics"), f"benchmark {index} metrics")),
         )
         for index, value in enumerate(benchmarks)
@@ -87,8 +92,11 @@ def parse_result(path: Path, run_name: str) -> BenchmarkResult:
 def _normalized_metrics(raw: Mapping[str, object]) -> dict[str, object]:
     metrics = normalize_guidellm_metrics(raw)
     totals = raw.get("request_totals")
-    if (isinstance(totals, Mapping) and isinstance(totals.get("total"), int)
-            and not isinstance(totals.get("total"), bool)):
+    if (
+        isinstance(totals, Mapping)
+        and isinstance(totals.get("total"), int)
+        and not isinstance(totals.get("total"), bool)
+    ):
         metrics["request_total"] = totals["total"]
     return metrics
 
@@ -102,11 +110,9 @@ def _serialize(values: Mapping[str, object]) -> str:
 
 def _pairs(path: str, value: object) -> tuple[str, ...]:
     if isinstance(value, Mapping):
-        return tuple(pair for key, item in value.items()
-                     for pair in _pairs(f"{path}.{key}", item))
+        return tuple(pair for key, item in value.items() for pair in _pairs(f"{path}.{key}", item))
     if isinstance(value, list | tuple):
-        return tuple(pair for index, item in enumerate(value)
-                     for pair in _pairs(f"{path}[{index}]", item))
+        return tuple(pair for index, item in enumerate(value) for pair in _pairs(f"{path}[{index}]", item))
     if isinstance(value, bool):
         rendered = str(value).lower()
     if isinstance(value, str | int | float) and not isinstance(value, bool):

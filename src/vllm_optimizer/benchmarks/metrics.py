@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-
 _GUIDELLM_METRICS = {
     "requests_per_second": "requests_per_second",
     "output_tokens_per_second": "output_tokens_per_second",
@@ -49,8 +48,10 @@ def normalize_vllm_metrics(raw: Mapping[str, object]) -> dict[str, object]:
         if summary := _vllm_latency(raw, stem):
             result[canonical] = summary
     result["request_totals"] = request_totals(
-        raw.get("request_totals"), completed=raw.get("completed"),
-        failed=raw.get("failed"), requested=raw.get("num_prompts"),
+        raw.get("request_totals"),
+        completed=raw.get("completed"),
+        failed=raw.get("failed"),
+        requested=raw.get("num_prompts"),
     )
     return result
 
@@ -64,13 +65,8 @@ def metric_summary(value: object, scale: float = 1.0) -> dict[str, float]:
     successful = value.get("successful")
     source = successful if isinstance(successful, Mapping) else value
     result: dict[str, float] = {}
-    for target, names in {
-        "average": ("average", "mean"),
-        "median": ("median", "p50"),
-        "p99": ("p99",),
-    }.items():
-        number = next((_number(source.get(name)) for name in names
-                       if _number(source.get(name)) is not None), None)
+    for target, names in {"average": ("average", "mean"), "median": ("median", "p50"), "p99": ("p99",)}.items():
+        number = next((_number(source.get(name)) for name in names if _number(source.get(name)) is not None), None)
         if number is not None:
             result[target] = number * scale
     percentiles = source.get("percentiles")
@@ -82,18 +78,13 @@ def metric_summary(value: object, scale: float = 1.0) -> dict[str, float]:
 
 
 def request_totals(
-    value: object, *, completed: object = None, failed: object = None,
-    requested: object = None,
+    value: object, *, completed: object = None, failed: object = None, requested: object = None
 ) -> dict[str, int]:
     source = value if isinstance(value, Mapping) else {}
     successful = _count(source.get("successful", completed))
     errored = _count(source.get("errored", source.get("failed", failed)))
     incomplete = _count(source.get("incomplete"))
-    result = {
-        "successful": successful,
-        "errored": errored,
-        "incomplete": incomplete,
-    }
+    result = {"successful": successful, "errored": errored, "incomplete": incomplete}
     total = _optional_count(source.get("total", requested))
     if total is not None:
         result["incomplete"] = max(incomplete, total - successful - errored)
@@ -106,8 +97,7 @@ def _vllm_latency(raw: Mapping[str, object], stem: str) -> dict[str, float]:
         "median": raw.get(f"median_{stem}_ms", raw.get(f"p50_{stem}_ms")),
         "p99": raw.get(f"p99_{stem}_ms"),
     }
-    return {name: number for name, value in values.items()
-            if (number := _number(value)) is not None}
+    return {name: number for name, value in values.items() if (number := _number(value)) is not None}
 
 
 def _number(value: object) -> float | None:

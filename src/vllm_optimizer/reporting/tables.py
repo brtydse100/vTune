@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 from html import escape
-import json
 
 from vllm_optimizer.domain.trial_report import TrialReport
 from vllm_optimizer.managers.scoring import TrialScore
-from vllm_optimizer.reporting.context import ReportContext
 from vllm_optimizer.reporting.analysis import default_metrics
+from vllm_optimizer.reporting.context import ReportContext
 
 
-def ranking_table(
-    ranking: tuple[TrialScore, ...], baseline: TrialScore | None,
-) -> str:
+def ranking_table(ranking: tuple[TrialScore, ...], baseline: TrialScore | None) -> str:
     unique = _unique_changed(ranking, baseline)
     rows = "".join(
         f"<tr><td>{index}</td><td>{escape(item.trial_id)}</td><td>{item.value:.4f}</td>"
@@ -22,8 +20,7 @@ def ranking_table(
         f"<td><code>{escape(json.dumps(changes, sort_keys=True))}</code></td></tr>"
         for index, (item, changes) in enumerate(unique, start=1)
     )
-    return _table(("Rank", "Trial", "Score", "Error rate", "Errors",
-                   "Changed settings"), rows)
+    return _table(("Rank", "Trial", "Score", "Error rate", "Errors", "Changed settings"), rows)
 
 
 def evidence_table(ranking: tuple[TrialScore, ...]) -> str:
@@ -31,18 +28,18 @@ def evidence_table(ranking: tuple[TrialScore, ...]) -> str:
         f"<tr><td>{escape(item.trial_id)}</td><td>{item.value:.4f}</td>"
         f"<td>{item.successful_requests}</td><td>{item.errored_requests}</td>"
         f"<td>{item.incomplete_requests}</td><td>{item.error_rate:.2%}</td>"
-        f"<td>{item.excluded_workloads}</td></tr>" for item in ranking
+        f"<td>{item.excluded_workloads}</td></tr>"
+        for item in ranking
     )
-    return _table(("Trial", "Metric", "Successful", "Errored", "Incomplete",
-                   "Error rate", "Excluded workloads"), rows)
+    return _table(("Trial", "Metric", "Successful", "Errored", "Incomplete", "Error rate", "Excluded workloads"), rows)
 
 
 def benchmark_table(context: ReportContext) -> str:
     names = context.benchmark_names or tuple(context.benchmark_rankings)
     rows = "".join(
-        f"<tr><td>{escape(name)}</td><td>{escape(values[0].trial_id)}</td>"
-        f"<td>{values[0].value:.4f}</td></tr>"
-        for name in names if (values := context.benchmark_rankings.get(name, ()))
+        f"<tr><td>{escape(name)}</td><td>{escape(values[0].trial_id)}</td><td>{values[0].value:.4f}</td></tr>"
+        for name in names
+        if (values := context.benchmark_rankings.get(name, ()))
     )
     return _table(("Benchmark", "Best trial", "Score"), rows)
 
@@ -56,10 +53,14 @@ def changes_table(best: TrialScore | None, baseline: TrialScore | None) -> str:
         f"<tr><td><code>{escape(name)}</code></td>"
         f"<td>{escape(repr(base.get(name, '(vLLM default)')))}</td>"
         f"<td>{escape(repr(best.server_args.get(name, '(vLLM default)')))}</td></tr>"
-        for name in names if base.get(name) != best.server_args.get(name)
+        for name in names
+        if base.get(name) != best.server_args.get(name)
     )
-    return (_table(("Setting", "Baseline", "Best observed"), rows)
-            if rows else "<p>No explicit server arguments changed from baseline.</p>")
+    return (
+        _table(("Setting", "Baseline", "Best observed"), rows)
+        if rows
+        else "<p>No explicit server arguments changed from baseline.</p>"
+    )
 
 
 def metrics_table(report: TrialReport | None) -> str:
@@ -88,23 +89,23 @@ def failures(trials: tuple[TrialReport, ...]) -> str:
     rows = "".join(
         f"<tr><td>{escape(report.trial_id)}</td><td>{report.status.value}</td>"
         f"<td>{escape(report.failure.code)}</td><td>{escape(report.failure.message)}</td>"
-        f"<td>{len(report.attempts)}</td></tr>" for report in failed if report.failure
+        f"<td>{len(report.attempts)}</td></tr>"
+        for report in failed
+        if report.failure
     )
     return chart + _table(("Trial", "Status", "Category", "Details", "Attempts"), rows)
 
 
 def _unique_changed(
-    ranking: tuple[TrialScore, ...], baseline: TrialScore | None,
+    ranking: tuple[TrialScore, ...], baseline: TrialScore | None
 ) -> list[tuple[TrialScore, dict[str, object]]]:
     base_args = dict(baseline.server_args) if baseline else {}
     base_env = dict(baseline.server_env) if baseline else {}
     unique: list[tuple[TrialScore, dict[str, object]]] = []
     seen: set[str] = set()
     for item in ranking:
-        changes = {name: value for name, value in item.server_args.items()
-                   if base_args.get(name) != value}
-        changes.update({f"env.{name}": value for name, value in item.server_env.items()
-                        if base_env.get(name) != value})
+        changes = {name: value for name, value in item.server_args.items() if base_args.get(name) != value}
+        changes.update({f"env.{name}": value for name, value in item.server_env.items() if base_env.get(name) != value})
         fingerprint = json.dumps(changes, sort_keys=True, default=repr)
         if fingerprint not in seen:
             seen.add(fingerprint)

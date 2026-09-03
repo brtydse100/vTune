@@ -1,11 +1,11 @@
 """Result types shared by execution workers and their managers."""
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Generic, TypeVar
 
 
-class WorkerStatus(str, Enum):
+class WorkerStatus(StrEnum):
     COMPLETED = "completed"
     FAILED = "failed"
     INTERRUPTED = "interrupted"
@@ -50,10 +50,5 @@ class WorkerResult(Generic[T]):
         return cls(status=WorkerStatus.FAILED, failure=failure)
 
     @classmethod
-    def interrupted(
-        cls, message: str = "Worker execution was interrupted"
-    ) -> "WorkerResult[T]":
-        return cls(
-            status=WorkerStatus.INTERRUPTED,
-            failure=Failure(code="interrupted", message=message),
-        )
+    def interrupted(cls, message: str = "Worker execution was interrupted") -> "WorkerResult[T]":
+        return cls(status=WorkerStatus.INTERRUPTED, failure=Failure(code="interrupted", message=message))

@@ -72,6 +72,7 @@ nav:
           - Cross-cutting requirements: roadmap/requirements.md
       - Trust plan: TRUST_PLAN.md
       - Contributing: contributing.md
+      - v0.1.0a13: releases/v0.1.0a13.md
       - v0.1.0a12: releases/v0.1.0a12.md
       - v0.1.0a11: releases/v0.1.0a11.md
       - v0.1.0a10: releases/v0.1.0a10.md

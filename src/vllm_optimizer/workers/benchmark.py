@@ -8,30 +8,44 @@ from dataclasses import replace
 from pathlib import Path
 from time import monotonic
 
-from vllm_optimizer.benchmarks.guidellm import build_plan, parse_result
-from vllm_optimizer.benchmarks.configuration import configured_failure_percentage
 from vllm_optimizer.benchmarks.failures import save_failed_requests
+from vllm_optimizer.benchmarks.guidellm import build_plan, parse_result
 from vllm_optimizer.config.models import VTuneConfig
-from vllm_optimizer.config.runtime import logging_level
-from vllm_optimizer.domain.results import Failure, WorkerResult
-from vllm_optimizer.reproduction.models import CommandRecord
+from vllm_optimizer.domain.results import WorkerResult
 from vllm_optimizer.workers.base import TrialContext
-from vllm_optimizer.workers.attempts import attempt_directory
-from vllm_optimizer.workers.completion import (
-    completed_requests as _completed_requests, max_requests as _max_requests,
-    observed_requests as _observed_requests,
-    request_count_failure as _request_count_failure,
+from vllm_optimizer.workers.benchmark_state import (
+    artifact_directory,
+    artifact_prefix,
+    benchmark_environment,
+    failed,
+    ownership_key,
+    record_command,
+    remember_result,
+    worker_name,
 )
+from vllm_optimizer.workers.completion import completed_requests as _completed_requests
+from vllm_optimizer.workers.completion import max_requests as _max_requests
+from vllm_optimizer.workers.completion import observed_requests as _observed_requests
+from vllm_optimizer.workers.completion import request_count_failure as _request_count_failure
 from vllm_optimizer.workers.failure_details import classified_failure
+from vllm_optimizer.workers.guidellm_completion import completion_failure
 from vllm_optimizer.workers.process import ManagedProcess, ProcessRunner, ProcessSpec
 from vllm_optimizer.workers.progress import BenchmarkProgress, ProgressCallback
+
+__all__ = ["GuideLLMBenchmarkWorker", "_completed_requests", "_max_requests", "_request_count_failure"]
 
 
 class GuideLLMBenchmarkWorker:
     def __init__(
-        self, config: VTuneConfig, run: Mapping[str, object], runner: ProcessRunner,
-        artifacts: Path, timeout: float = 180, shutdown_grace: float = 5,
-        repeat_index: int | None = None, warmup_index: int | None = None,
+        self,
+        config: VTuneConfig,
+        run: Mapping[str, object],
+        runner: ProcessRunner,
+        artifacts: Path,
+        timeout: float = 180,
+        shutdown_grace: float = 5,
+        repeat_index: int | None = None,
+        warmup_index: int | None = None,
         progress: ProgressCallback | None = None,
     ) -> None:
         if timeout <= 0 or shutdown_grace < 0:
@@ -48,67 +62,66 @@ class GuideLLMBenchmarkWorker:
 
     @property
     def name(self) -> str:
-        suffix = (f":warmup-{self._warmup_index}" if self._warmup_index
-                  else f":repeat-{self._repeat_index}" if self._repeat_index else "")
-        return f"guidellm_benchmark:{self._run_name}{suffix}"
+        return worker_name("guidellm", self._run_name, self._repeat_index, self._warmup_index)
 
     @property
     def _ownership_key(self) -> str:
-        phase = f"warmup-{self._warmup_index}" if self._warmup_index else f"repeat-{self._repeat_index or 'single'}"
-        return f"_guidellm_owned_process_{self._run_name}_{phase}"
+        return ownership_key("guidellm", self._run_name, self._repeat_index, self._warmup_index)
 
     async def execute(self, context: TrialContext) -> WorkerResult[None]:
         endpoint = context.values.get("server_endpoint")
         if not isinstance(endpoint, str):
-            return self._failed("benchmark_endpoint_missing", "Missing server endpoint")
+            return failed("benchmark_endpoint_missing", "Missing server endpoint")
         try:
-            artifacts = attempt_directory(self._artifacts, context)
-            if self._warmup_index:
-                artifacts = artifacts / "warmups" / f"{self._warmup_index:03d}"
-            elif self._repeat_index:
-                artifacts = artifacts / "repeats" / f"{self._repeat_index:03d}"
+            artifacts = artifact_directory(self._artifacts, context, self._repeat_index, self._warmup_index)
             plan = build_plan(self._config, self._run, endpoint, artifacts)
             plan.directory.mkdir(parents=True, exist_ok=True)
-            context.commands.append(CommandRecord(
-                "guidellm", plan.argv, int(context.values.get("attempt_index", 1)),
-                self._environment(), plan.run_name, self._repeat_index,
-            ))
+            record_command(
+                context,
+                "guidellm",
+                plan.argv,
+                benchmark_environment(self._config, guidellm=True),
+                plan.run_name,
+                self._repeat_index,
+            )
             started = monotonic()
             progress = BenchmarkProgress("guidellm", self._run, self.name, self._progress)
             await progress.prepare(endpoint)
             process = await self._runner.start(
-                ProcessSpec(plan.argv, env=self._environment()), plan.log_path
+                ProcessSpec(plan.argv, env=benchmark_environment(self._config, guidellm=True)), plan.log_path
             )
         except FileNotFoundError:
-            return self._failed(
+            return failed(
                 "guidellm_not_found",
                 "The 'guidellm' command was not found. On Linux or WSL, "
                 "install runtime tools with: pip install 'vllm-optimizer[runtime]'",
             )
         except Exception as error:
-            return self._failed("benchmark_launch_failed", str(error))
+            return failed("benchmark_launch_failed", str(error))
         context.values[self._ownership_key] = process
         progress.start(process)
-        suffix = (f"_warmup_{self._warmup_index}" if self._warmup_index
-                  else f"_repeat_{self._repeat_index}" if self._repeat_index else "")
-        prefix = f"benchmark_{plan.run_name}{suffix}"
+        prefix = artifact_prefix(plan.run_name, self._repeat_index, self._warmup_index)
         context.artifacts[f"{prefix}_log"] = str(plan.log_path)
         try:
             returncode = await asyncio.wait_for(process.wait(), timeout=self._timeout)
         except TimeoutError:
             await process.stop(self._shutdown_grace)
             return WorkerResult.failed(
-                classified_failure(plan.log_path, "benchmark_timeout",
-                                   f"GuideLLM benchmark '{plan.run_name}' timed out after "
-                                   f"{self._timeout:g}s and was stopped; full log: "
-                                   f"{plan.log_path}", True)
+                classified_failure(
+                    plan.log_path,
+                    "benchmark_timeout",
+                    f"GuideLLM benchmark '{plan.run_name}' timed out after "
+                    f"{self._timeout:g}s and was stopped; full log: "
+                    f"{plan.log_path}",
+                    True,
+                )
             )
         finally:
             await progress.stop()
         if returncode:
-            return WorkerResult.failed(classified_failure(
-                plan.log_path, "benchmark_failed", f"GuideLLM exited with code {returncode}"
-            ))
+            return WorkerResult.failed(
+                classified_failure(plan.log_path, "benchmark_failed", f"GuideLLM exited with code {returncode}")
+            )
         try:
             result = replace(
                 parse_result(plan.json_path, plan.run_name),
@@ -116,51 +129,21 @@ class GuideLLMBenchmarkWorker:
                 elapsed_seconds=monotonic() - started,
             )
         except ValueError as error:
-            return WorkerResult.failed(classified_failure(
-                plan.log_path, "benchmark_result_invalid", str(error)
-            ))
+            return WorkerResult.failed(classified_failure(plan.log_path, "benchmark_result_invalid", str(error)))
         progress.complete(process, _observed_requests(result))
         failed_path = plan.directory / "failed_requests.json"
         if save_failed_requests(plan.json_path, "guidellm", failed_path):
             context.artifacts[f"{prefix}_failed_requests"] = str(failed_path)
         context.artifacts[f"{prefix}_json"] = str(plan.json_path)
-        has_request_limit, expected_requests = _max_requests(self._run)
-        if has_request_limit:
-            failure = _request_count_failure(
-                result, expected_requests, max_failure_percentage=
-                configured_failure_percentage(self._config),
-            )
-            if failure is not None:
-                self._remember_observed(context, result)
-                return WorkerResult.failed(failure)
-        elif not _completed_requests(result):
-            self._remember_observed(context, result)
-            return WorkerResult.failed(Failure(
-                "benchmark_no_completed_requests",
-                f"GuideLLM exited without completed requests for '{plan.run_name}'; "
-                f"vLLM may still have pending work. Inspect benchmark log: {plan.log_path}",
-            ))
-        previous = context.values.get("benchmark_results", ())
+        failure = completion_failure(self._config, self._run, result, plan.run_name, plan.log_path)
+        if failure is not None:
+            remember_result(context, result, observed=True, warmup=self._warmup_index)
+            return WorkerResult.failed(failure)
         if self._warmup_index is None:
-            context.values["benchmark_results"] = (*previous, result)
+            remember_result(context, result)
         return WorkerResult.completed()
-
-    def _remember_observed(self, context: TrialContext, result: object) -> None:
-        if self._warmup_index is None:
-            previous = context.values.get("observed_benchmark_results", ())
-            context.values["observed_benchmark_results"] = (*previous, result)
 
     async def cleanup(self, context: TrialContext) -> None:
         process = context.values.pop(self._ownership_key, None)
         if isinstance(process, ManagedProcess):
             await process.stop(self._shutdown_grace)
-
-    def _environment(self) -> dict[str, str]:
-        environment = {key: str(value) for key, value in self._config.env.items()}
-        environment["PYTHONUNBUFFERED"] = "1"
-        environment["GUIDELLM__LOGGING__CONSOLE_LOG_LEVEL"] = logging_level(self._config)
-        return environment
-
-    @staticmethod
-    def _failed(code: str, message: str) -> WorkerResult[None]:
-        return WorkerResult.failed(Failure(code, message))

@@ -1,5 +1,11 @@
 # Search and scoring
 
+Request failures are an eligibility gate controlled by
+`benchmark.max_failure_percentage`. Among eligible trials, the configured
+`optimization.maximize` metric is the primary objective in search, persisted
+rankings, baseline comparison, terminal output, CSV, and HTML. Ties use failure
+percentage, failure count, and trial identifier in that order.
+
 Choose `grid` for exhaustive small spaces, `random` for a bounded sample, or
 `tpe` for guided exploration. Random and TPE searches do not execute the same
 resolved configuration twice.

@@ -25,31 +25,31 @@ class ScheduledResult(Generic[T]):
 
 
 async def sequential_trials(
-    search: SearchSession, execute: Execute[T], started: Started,
+    search: SearchSession, execute: Execute[T], started: Started
 ) -> AsyncIterator[ScheduledResult[T]]:
     position = 0
     while (parameters := search.suggest()) is not None:
         position += 1
         started(position, parameters, None)
-        yield ScheduledResult(position, parameters, None,
-                              await execute(parameters, None))
+        yield ScheduledResult(position, parameters, None, await execute(parameters, None))
 
 
 async def parallel_trials(
-    search: SearchSession, slots: tuple[WorkerSlot, ...],
-    fixed: dict[str, object], execute: Execute[T], started: Started,
+    search: SearchSession,
+    slots: tuple[WorkerSlot, ...],
+    fixed: dict[str, object],
+    execute: Execute[T],
+    started: Started,
 ) -> AsyncIterator[ScheduledResult[T]]:
     available = list(slots)
     pending: list[tuple[int, TrialParameters]] = []
-    active: dict[asyncio.Task[T], tuple[int, TrialParameters, WorkerSlot]] = {}
+    active: dict[asyncio.Future[T], tuple[int, TrialParameters, WorkerSlot]] = {}
     exhausted, position = False, 0
     try:
         while active or pending or not exhausted:
             made_progress = True
             while available and made_progress:
-                made_progress = _start_compatible(
-                    pending, available, active, fixed, execute, started,
-                )
+                made_progress = _start_compatible(pending, available, active, fixed, execute, started)
                 if made_progress:
                     continue
                 parameters = search.suggest()
@@ -76,9 +76,12 @@ async def parallel_trials(
 
 
 def _start_compatible(
-    pending: list[tuple[int, TrialParameters]], available: list[WorkerSlot],
-    active: dict[asyncio.Task[T], tuple[int, TrialParameters, WorkerSlot]],
-    fixed: dict[str, object], execute: Execute[T], started: Started,
+    pending: list[tuple[int, TrialParameters]],
+    available: list[WorkerSlot],
+    active: dict[asyncio.Future[T], tuple[int, TrialParameters, WorkerSlot]],
+    fixed: dict[str, object],
+    execute: Execute[T],
+    started: Started,
 ) -> bool:
     for pending_index, (position, parameters) in enumerate(pending):
         for slot_index, slot in enumerate(available):
@@ -87,7 +90,7 @@ def _start_compatible(
             pending.pop(pending_index)
             available.pop(slot_index)
             started(position, parameters, slot)
-            task = asyncio.create_task(execute(parameters, slot))
+            task = asyncio.ensure_future(execute(parameters, slot))
             active[task] = (position, parameters, slot)
             return True
     return False

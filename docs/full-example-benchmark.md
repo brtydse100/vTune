@@ -3,7 +3,7 @@
 ```yaml
 benchmark:
   engine: guidellm  # guidellm (default) or vllm
-  repeats: 3  # Default: 1. The vllm-opt CLI uses the median across repeated runs.
+  repeats: 3  # Default: 3. The vllm-opt CLI uses the median across repeated runs.
   runs:
     # Each named run is one GuideLLM invocation against the same server.
     # A run must contain exactly one data item.
