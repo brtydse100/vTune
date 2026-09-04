@@ -21,7 +21,7 @@ try {
     & $launcher[0] $launcher[1..($launcher.Length - 1)] -m venv $validation
     if ($LASTEXITCODE -ne 0) { throw "Could not create validation environment" }
     $pythonExe = Join-Path $validation "Scripts\python.exe"
-    Invoke-Python $pythonExe @("-m", "pip", "install", "--upgrade", "pip", ".[test]", "-r", "requirements-docs.txt", "cyclonedx-bom")
+    Invoke-Python $pythonExe @("-m", "pip", "install", "--upgrade", "pip", "setuptools>=83", ".[test]", "-r", "requirements-docs.txt", "cyclonedx-bom")
     Invoke-Python $pythonExe @("-m", "ruff", "check", "src", "tests")
     Invoke-Python $pythonExe @("-m", "ruff", "format", "--check", "src", "tests")
     Invoke-Python $pythonExe @("-m", "mypy")
